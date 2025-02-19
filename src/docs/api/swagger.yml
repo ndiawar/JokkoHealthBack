@@ -1,0 +1,75 @@
+# Swagger API Documentation
+
+swagger: "2.0"
+info:
+  description: "API documentation for JokkoHealthBackEnd"
+  version: "1.0.0"
+  title: "JokkoHealth API"
+host: "localhost:3000"
+basePath: "/api/v1"
+schemes:
+  - "http"
+  - "https"
+paths:
+  /auth/login:
+    post:
+      summary: "User login"
+      description: "Logs in a user and returns a token."
+      parameters:
+        - name: "body"
+          in: "body"
+          required: true
+          schema:
+            type: "object"
+            properties:
+              email:
+                type: "string"
+                format: "email"
+              password:
+                type: "string"
+      responses:
+        200:
+          description: "Successful login"
+        401:
+          description: "Invalid credentials"
+  /auth/register:
+    post:
+      summary: "User registration"
+      description: "Registers a new user."
+      parameters:
+        - name: "body"
+          in: "body"
+          required: true
+          schema:
+            type: "object"
+            properties:
+              email:
+                type: "string"
+                format: "email"
+              password:
+                type: "string"
+              name:
+                type: "string"
+      responses:
+        201:
+          description: "User registered successfully"
+        400:
+          description: "Invalid input"
+  /users/profile:
+    get:
+      summary: "Get user profile"
+      description: "Retrieves the profile of the logged-in user."
+      responses:
+        200:
+          description: "Successful retrieval of user profile"
+        401:
+          description: "Unauthorized"
+  /users/preferences:
+    get:
+      summary: "Get user preferences"
+      description: "Retrieves the preferences of the logged-in user."
+      responses:
+        200:
+          description: "Successful retrieval of user preferences"
+        401:
+          description: "Unauthorized"

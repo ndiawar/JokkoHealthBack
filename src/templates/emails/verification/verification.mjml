@@ -1,0 +1,18 @@
+<mjml>
+  <mj-body>
+    <mj-section>
+      <mj-column>
+        <mj-text align="center" font-size="20px" font-weight="bold">
+          Vérification de votre compte
+        </mj-text>
+        <mj-text>
+          Bonjour {{userName}},
+        </mj-text>
+        <mj-text>
+          Cliquez sur le lien ci-dessous pour vérifier votre compte et commencer à l'utiliser.
+        </mj-text>
+        <mj-button href="{{verificationUrl}}">Vérifier le compte</mj-button>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

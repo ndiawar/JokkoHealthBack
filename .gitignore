@@ -1,0 +1,87 @@
+.vscode
+.history
+
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn.lock
+package-lock.json
+
+# Environnement et configuration
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Bases de données et caches
+*.sqlite
+*.sqlite-journal
+*.db
+*.db-wal
+*.db-shm
+.cache/
+tmp/
+pids/
+*.pid
+*.seed
+*.seed.js
+.dockerignore
+
+# IDE et OS spécifiques
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+Thumbs.db
+
+# Fichiers de build et transpilation
+dist/
+build/
+coverage/
+.out/
+out/
+.temp/
+public/uploads/
+public/assets/
+public/build/
+
+# Documentation générée
+docs/swagger.json
+docs/postman/
+
+# Logs d'application
+logs/error/
+logs/access/
+logs/debug/
+
+# Tests
+jest.config.js
+coverage/
+*.test.js
+*.spec.js
+cypress/
+cypress/videos/
+cypress/screenshots/
+
+# Déploiement et conteneurs
+.dockerignore
+docker-compose.yml
+*.tar.gz
+*.zip
+
+# Autres fichiers sensibles
+keys/
+certs/
+secrets/

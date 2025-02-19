@@ -1,0 +1,29 @@
+<!-- templates/emails/welcome/welcome.mjml -->
+<mjml>
+  <mj-head>
+    <mj-title>Bienvenue sur JokkoHealth</mj-title>
+    <mj-font name="Roboto" href="https://fonts.googleapis.com/css?family=Roboto" />
+    <mj-attributes>
+      <mj-all font-family="Roboto, Helvetica, sans-serif" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body>
+    <mj-section background-color="#f0f0f0">
+      <mj-column>
+        <mj-image width="200px" src="images/logo.png" alt="JokkoHealth Logo" />
+      </mj-column>
+    </mj-section>
+    <mj-section>
+      <mj-column>
+        <mj-text font-size="20px" color="#333">Bienvenue sur JokkoHealth!</mj-text>
+        <mj-text>
+          Bonjour {{name}},
+          Nous sommes ravis de vous accueillir sur JokkoHealth. Votre compte a été créé avec succès.
+        </mj-text>
+        <mj-button background-color="#2196F3" href="{{verificationLink}}">
+          Vérifier mon compte
+        </mj-button>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

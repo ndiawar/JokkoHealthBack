@@ -1,0 +1,15 @@
+{
+    "welcome": {
+      "subject": "Bienvenue sur notre plateforme !",
+      "body": "Bonjour {{userName}},\nNous sommes ravis de vous accueillir sur notre plateforme. Pour commencer, nous vous invitons à explorer nos services."
+    },
+    "reset-password": {
+      "subject": "Réinitialisation de mot de passe",
+      "body": "Bonjour {{userName}},\nVous avez demandé à réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous pour définir un nouveau mot de passe."
+    },
+    "verification": {
+      "subject": "Vérification de votre compte",
+      "body": "Bonjour {{userName}},\nCliquez sur le lien ci-dessous pour vérifier votre compte et commencer à l'utiliser."
+    }
+  }
+  
