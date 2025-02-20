@@ -1,4 +1,3 @@
-// Importation des dépendances nécessaires
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -9,24 +8,22 @@ import morgan from 'morgan';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
-import routes from './routes/index.js';  // Importation du fichier index.js dans le répertoire routes
+import routes from './routes/index.js';  // Importation des routes
 import jwt from 'jsonwebtoken';  // Importer jwt pour gérer l'authentification
 import { connectDB } from './config/database.js';  // Importer la fonction de connexion à la DB
 import morganMiddleware from './utils/logger/morgan.js';  // Importer ton middleware morgan personnalisé
-
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
 
 // Chargement des variables d'environnement
 dotenv.config();
-
-
 
 // Initialisation de l'application Express
 const app = express();
 const port = process.env.PORT || 3000;
 
-
 // Connexion à la base de données MongoDB
-connectDB();  // Appeler la fonction connectDB pour établir la connexion
+connectDB();
 
 // Middleware
 app.use(cors());
@@ -40,8 +37,26 @@ app.use((req, res, next) => {
   next();
 });
 
+// Swagger options
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Appointments API',
+      version: '1.0.0',
+      description: 'API documentation for managing appointments',
+    },
+  },
+  apis: ['./routes/**/*.js'], // Modifier pour inclure toutes les routes dans /routes
+};
+
+// Swagger Docs setup
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Utilisation des routes
-app.use('/api', routes);  // Utiliser les routes définies dans `index.js`
+app.use('/api', routes);
+
+// Afficher les routes disponibles
 console.log("🔹 Routes disponibles :", app._router.stack
   .filter(r => r.route)
   .map(r => r.route.path)
@@ -52,7 +67,6 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });
-
 
 // Création du serveur HTTP
 const server = createServer(app);
