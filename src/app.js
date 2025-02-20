@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import routes from './routes/index.js';  // Importation du fichier index.js dans le répertoire routes
 import jwt from 'jsonwebtoken';  // Importer jwt pour gérer l'authentification
 import { connectDB } from './config/database.js';  // Importer la fonction de connexion à la DB
+import morganMiddleware from './utils/logger/morgan.js';  // Importer ton middleware morgan personnalisé
 
 // Chargement des variables d'environnement
 dotenv.config();
@@ -23,7 +24,7 @@ connectDB();  // Appeler la fonction connectDB pour établir la connexion
 // Middleware
 app.use(cors());
 app.use(helmet());
-app.use(morgan('dev'));
+app.use(morganMiddleware);  // Utiliser ton middleware de morgan pour les logs
 app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
