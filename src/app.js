@@ -35,9 +35,17 @@ app.use(morganMiddleware);  // Utiliser ton middleware de morgan pour les logs
 app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  console.log(`🔹 Requête reçue: ${req.method} ${req.url}`);
+  next();
+});
 
 // Utilisation des routes
 app.use('/api', routes);  // Utiliser les routes définies dans `index.js`
+console.log("🔹 Routes disponibles :", app._router.stack
+  .filter(r => r.route)
+  .map(r => r.route.path)
+);
 
 // Gestion des erreurs
 app.use((err, req, res, next) => {
