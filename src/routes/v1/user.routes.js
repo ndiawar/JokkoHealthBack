@@ -7,7 +7,6 @@ import { authenticate } from '../../middlewares/auth/authenticate.js';
 
 const router = express.Router();
 
-
 // 📌 Authentification
 router.post('/register', userValidator.register, UserController.register);
 router.post('/login', userValidator.login, UserController.login);
