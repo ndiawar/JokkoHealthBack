@@ -1,37 +1,40 @@
 // controllers/appointmentController.js
 import Appointment from '../../models/appointment/AppointementModel.js';
+import User from '../../models/user/userModel.js';
+
 import { validationResult } from 'express-validator';
 
 class AppointmentController {
     // Créer un rendez-vous
-    async create(req, res) {
-        try {
-            const errors = validationResult(req);
-            if (!errors.isEmpty()) {
-                return res.status(400).json({ errors: errors.array() });
-            }
-
-            const { date, heure_debut, heure_fin, specialiste, patientId } = req.body;
-
-            // Vérification de la date
-            const appointmentDate = new Date(date);
-            if (appointmentDate < new Date()) {
-                return res.status(400).json({ message: 'La date ne peut pas être dans le passé.' });
-            }
-
-            // Vérification des heures
-            if (heure_debut >= heure_fin) {
-                return res.status(400).json({ message: 'L\'heure de fin doit être supérieure à l\'heure de début.' });
-            }
-
-            const newAppointment = await Appointment.create({ date, heure_debut, heure_fin, specialiste, patientId });
-            return res.status(201).json(newAppointment);
-        } catch (error) {
-            return res.status(500).json({ error: 'Erreur lors de la création du rendez-vous.' });
+   // controllers/appointmentController.js
+   async create(req, res) {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
         }
-    }
 
-    // Lire tous les rendez-vous
+        const { date, heure_debut, heure_fin, specialiste } = req.body;
+
+        // Vérification de la date
+        const appointmentDate = new Date(date);
+        if (appointmentDate < new Date()) {
+            return res.status(400).json({ message: 'La date ne peut pas être dans le passé.' });
+        }
+
+        // Vérification des heures
+        if (heure_debut >= heure_fin) {
+            return res.status(400).json({ message: 'L\'heure de fin doit être supérieure à l\'heure de début.' });
+        }
+
+        const newAppointment = await Appointment.create({ date, heure_debut, heure_fin, specialiste });
+        return res.status(201).json(newAppointment);
+    } catch (error) {
+        return res.status(500).json({ error: 'Erreur lors de la création du rendez-vous.' });
+    }
+}
+
+// Lire tous les rendez-vous
     async list(req, res) {
         const appointments = await Appointment.find();
         return res.status(200).json(appointments);
@@ -66,26 +69,37 @@ class AppointmentController {
         return res.status(204).send();
     }
     // Demander la participation
+    // Demander la participation
 async demanderParticipation(req, res) {
-    const { patientId } = req.body; // ID du patient qui demande la participation
-    const appointment = await Appointment.findById(req.params.id);
+    try {
+        const { patientId } = req.body;
+        const appointment = await Appointment.findById(req.params.id);
+    
+        if (!appointment) {
+            return res.status(404).json({ message: 'Rendez-vous non trouvé.' });
+        }
 
-    if (!appointment) {
-        return res.status(404).json({ message: 'Rendez-vous non trouvé.' });
+        // Vérifiez si le patient existe et s'il a le rôle 'Patient'
+        const patient = await User.findById(patientId);
+        console.log(patient);  // Ajoutez ceci pour vérifier l'utilisateur retourné
+
+        if (!patient || patient.role !== 'Patient') {
+            return res.status(400).json({ message: 'L\'utilisateur doit être un patient.' });
+        }
+    
+        // Enregistrer la demande de participation dans le rendez-vous
+        appointment.demandeParticipe = true; // Mettre à jour la demande de participation
+        appointment.patientId = patientId;   // Ajouter le patientId
+        await appointment.save();
+    
+        return res.status(200).json({ message: 'Demande de participation envoyée avec succès.' });
+    } catch (error) {
+        console.error(error);  // Affichez l'erreur pour un débogage plus facile
+        return res.status(500).json({ error: 'Erreur lors de la demande de participation.' });
     }
-
-    // Vérifiez si la demande a déjà été faite
-    if (appointment.demandeParticipe) {
-        return res.status(400).json({ message: 'Demande de participation déjà faite.' });
-    }
-
-    appointment.demandeParticipe = true;
-    appointment.patientId = patientId; // Vous pouvez aussi vérifier si le patient correspond à l'ID
-
-    await appointment.save();
-    return res.status(200).json(appointment);
 }
 
+    
 // Gérer l'acceptation ou le rejet de la demande
 async gestionDemande(req, res) {
     const { statutDemande } = req.body; // 'accepté' ou 'rejeté'
