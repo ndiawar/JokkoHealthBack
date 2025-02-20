@@ -1,62 +1,99 @@
 import User from '../../models/user/userModel.js';
 import ProfileModel from '../../models/user/profileModel.js';
+import CrudController from '../base/crudController.js'
+import { validationResult } from 'express-validator';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-class UserController {
-    async getAllUsers(req, res) {
+class UserController extends CrudController {
+    constructor() {
+        super(User);
+    }
+
+    // 📌 Inscription d'un utilisateur
+    async register(req, res) {
         try {
-            const users = await UserModel.find();
-            res.status(200).json(users);
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
+            }
+
+            const { email, motDePasse } = req.body;
+
+            // Vérifier si l'utilisateur existe déjà
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+                return res.status(400).json({ message: 'Cet email est déjà utilisé' });
+            }
+
+            // Hashage du mot de passe
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(motDePasse, salt);
+
+            // Création de l'utilisateur
+            const newUser = await User.create({ ...req.body, motDePasse: hashedPassword });
+
+            return res.status(201).json(newUser);
         } catch (error) {
-            res.status(500).json({ message: 'Error fetching users', error });
+            return res.status(500).json({ error: 'Erreur lors de l\'inscription' });
         }
     }
 
-    async getUserById(req, res) {
-        const { id } = req.params;
+    // 📌 Connexion d'un utilisateur
+    async login(req, res) {
         try {
-            const user = await UserModel.findById(id);
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
+            }
+
+            const { email, motDePasse } = req.body;
+
+            const user = await User.findOne({ email });
             if (!user) {
-                return res.status(404).json({ message: 'User not found' });
+                return res.status(401).json({ message: 'Identifiants invalides' });
             }
-            res.status(200).json(user);
+
+            // Vérifier le mot de passe
+            const isMatch = await bcrypt.compare(motDePasse, user.motDePasse);
+            if (!isMatch) {
+                return res.status(401).json({ message: 'Identifiants invalides' });
+            }
+
+            // Générer un token JWT
+            const token = jwt.sign(
+                { id: user._id, role: user.role },
+                process.env.JWT_SECRET,
+                { expiresIn: '1h' }
+            );
+
+            return res.status(200).json({ token, user });
         } catch (error) {
-            res.status(500).json({ message: 'Error fetching user', error });
+            return res.status(500).json({ error: 'Erreur lors de la connexion' });
         }
     }
 
-    async createUser(req, res) {
-        const newUser = new UserModel(req.body);
+    // 📌 Mise à jour du profil utilisateur
+    async updateProfile(req, res) {
         try {
-            const savedUser = await newUser.save();
-            res.status(201).json(savedUser);
-        } catch (error) {
-            res.status(400).json({ message: 'Error creating user', error });
-        }
-    }
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
+            }
 
-    async updateUser(req, res) {
-        const { id } = req.params;
-        try {
-            const updatedUser = await UserModel.findByIdAndUpdate(id, req.body, { new: true });
+            const updatedUser = await User.findByIdAndUpdate(
+                req.user.id,
+                req.body,
+                { new: true, runValidators: true }
+            );
+
             if (!updatedUser) {
-                return res.status(404).json({ message: 'User not found' });
+                return res.status(404).json({ message: 'Utilisateur non trouvé' });
             }
-            res.status(200).json(updatedUser);
-        } catch (error) {
-            res.status(400).json({ message: 'Error updating user', error });
-        }
-    }
 
-    async deleteUser(req, res) {
-        const { id } = req.params;
-        try {
-            const deletedUser = await UserModel.findByIdAndDelete(id);
-            if (!deletedUser) {
-                return res.status(404).json({ message: 'User not found' });
-            }
-            res.status(204).send();
+            return res.status(200).json(updatedUser);
         } catch (error) {
-            res.status(500).json({ message: 'Error deleting user', error });
+            return res.status(500).json({ error: 'Erreur lors de la mise à jour du profil' });
         }
     }
 }
