@@ -1,4 +1,3 @@
-// src/services/email/emailService.js
 import nodemailer from 'nodemailer';
 import { mailConfig } from '../../config/mail.js';
 
@@ -7,8 +6,9 @@ class EmailService {
         this.transporter = nodemailer.createTransport(mailConfig);
     }
 
-    // Méthode pour envoyer un email
-    async sendEmail(to, subject, text, html) {
+    // Méthode générique pour envoyer un e-mail
+    async sendEmail(emailData) {
+        const { to, subject, text, html } = emailData;
         const mailOptions = {
             from: mailConfig.from,
             to,
@@ -19,33 +19,33 @@ class EmailService {
 
         try {
             const info = await this.transporter.sendMail(mailOptions);
-            return info;
+            return info; // Retourne les informations de l'email envoyé
         } catch (error) {
-            throw new Error(`Failed to send email: ${error.message}`);
+            throw new Error(`Échec de l'envoi de l'e-mail : ${error.message}`);
         }
     }
 
-    // Méthode pour envoyer un email de réinitialisation de mot de passe
+    // Méthode pour envoyer un e-mail de réinitialisation de mot de passe
     async sendPasswordResetEmail(to, token) {
-        const subject = 'Password Reset Request';
-        const text = `Please use the following link to reset your password: http://example.com/reset-password?token=${token}`;
-        const html = `<p>Please use the following link to reset your password: <a href="http://example.com/reset-password?token=${token}">Reset Password</a></p>`;
+        const subject = 'Demande de réinitialisation de mot de passe';
+        const text = `Veuillez utiliser le lien suivant pour réinitialiser votre mot de passe : http://example.com/reset-password?token=${token}`;
+        const html = `<p>Veuillez utiliser le lien suivant pour réinitialiser votre mot de passe : <a href="http://example.com/reset-password?token=${token}">Réinitialiser le mot de passe</a></p>`;
 
         try {
-            await this.sendEmail(to, subject, text, html);
+            await this.sendEmail(to, subject, text, html); // Envoi de l'email
         } catch (error) {
-            throw new Error(`Failed to send password reset email: ${error.message}`);
+            throw new Error(`Échec de l'envoi de l'e-mail de réinitialisation de mot de passe : ${error.message}`);
         }
     }
 
-    // Méthode pour envoyer un email de bienvenue
+    // Méthode pour envoyer un e-mail de bienvenue
     async sendWelcomeEmail(to) {
-        const subject = 'Welcome to JokkoHealth!';
-        const text = `Welcome to JokkoHealth! We're happy to have you with us.`;
-        const html = `<h1>Welcome to JokkoHealth!</h1><p>We're happy to have you with us.</p>`;
-        return this.sendEmail(to, subject, text, html);
+        const subject = 'Bienvenue sur JokkoHealth!';
+        const text = `Bienvenue sur JokkoHealth ! Nous sommes ravis de vous accueillir parmi nous.`;
+        const html = `<h1>Bienvenue sur JokkoHealth !</h1><p>Nous sommes ravis de vous accueillir parmi nous.</p>`;
+        return this.sendEmail(to, subject, text, html); // Envoi de l'email
     }
 }
 
-// Exporter l'instance d'EmailService
+// Exporter une instance d'EmailService
 export default new EmailService();

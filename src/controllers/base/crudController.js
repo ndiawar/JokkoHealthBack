@@ -1,22 +1,10 @@
 import { Error as MongooseError } from 'mongoose';
-import redisService from '../../services/cache/redisService.js';
-
 
 class CrudController {
     constructor(model) {
         this.model = model;
-        this.cacheExpiration = 3600; // 1 heure en secondes
+        this.cacheExpiration = 3600; // 1 heure en secondes, mais pourrait être dynamique
         this.modelName = model.modelName.toLowerCase();
-    }
-
-    // 🔹 Clé du cache pour un élément unique
-    #getItemCacheKey(id) {
-        return `${this.modelName}:${id}`;
-    }
-
-    // 🔹 Clé du cache pour la liste
-    #getListCacheKey() {
-        return `${this.modelName}:all`;
     }
 
     // 🔹 Gestion des erreurs globales
@@ -37,7 +25,6 @@ class CrudController {
     async create(req, res) {
         try {
             const newItem = await this.model.create(req.body);
-            await redisService.del(this.#getListCacheKey()); // Invalide le cache
             return res.status(201).json(newItem);
         } catch (error) {
             return this.#handleError(res, error, "Erreur lors de la création de l'élément");
@@ -47,19 +34,11 @@ class CrudController {
     // 🔹 Lecture d'un élément par ID
     async read(req, res) {
         try {
-            const cacheKey = this.#getItemCacheKey(req.params.id);
-            const cachedItem = await redisService.get(cacheKey);
-
-            if (cachedItem) {
-                return res.status(200).json(JSON.parse(cachedItem));
-            }
-
             const item = await this.model.findById(req.params.id);
             if (!item) {
                 return res.status(404).json({ message: 'Élément non trouvé' });
             }
 
-            await redisService.set(cacheKey, JSON.stringify(item), this.cacheExpiration);
             return res.status(200).json(item);
         } catch (error) {
             return this.#handleError(res, error, "Erreur lors de la récupération de l'élément");
@@ -69,26 +48,41 @@ class CrudController {
     // 🔹 Mise à jour d'un élément par ID
     async update(req, res) {
         try {
+            // Liste des champs autorisés pour la mise à jour
+            const allowedUpdates = ['nom', 'prenom', 'email', 'role', 'dateNaissance', 'sexe', 'telephone'];
+    
+            // Récupérer les clés des champs à mettre à jour depuis le corps de la requête
+            const updates = Object.keys(req.body);
+            
+            // Vérifier si tous les champs à mettre à jour sont autorisés
+            const isValidOperation = updates.every(update => allowedUpdates.includes(update));
+            
+            if (!isValidOperation) {
+                return res.status(400).json({ message: 'Certains champs ne peuvent pas être mis à jour' });
+            }
+    
+            // Si le mot de passe est dans la requête, il faudrait gérer le cas particulier
+            if (req.body.motDePasse) {
+                return res.status(400).json({ message: "Le mot de passe ne peut pas être mis à jour via cette méthode." });
+            }
+    
+            // Mettre à jour l'utilisateur dans la base de données
             const updatedItem = await this.model.findByIdAndUpdate(
                 req.params.id,
                 req.body,
                 { new: true, runValidators: true, context: 'query' }
             );
-
+    
             if (!updatedItem) {
-                return res.status(404).json({ message: "Élément introuvable pour mise à jour" });
+                return res.status(404).json({ message: "Utilisateur non trouvé" });
             }
-
-            await Promise.all([
-                redisService.del(this.#getItemCacheKey(req.params.id)),
-                redisService.del(this.#getListCacheKey())
-            ]);
-
+    
             return res.status(200).json(updatedItem);
         } catch (error) {
-            return this.#handleError(res, error, "Erreur lors de la mise à jour de l'élément");
+            return this.#handleError(res, error, "Erreur lors de la mise à jour de l'utilisateur");
         }
     }
+    
 
     // 🔹 Suppression d'un élément par ID
     async delete(req, res) {
@@ -97,11 +91,6 @@ class CrudController {
             if (!deletedItem) {
                 return res.status(404).json({ message: "Élément introuvable pour suppression" });
             }
-
-            await Promise.all([
-                redisService.del(this.#getItemCacheKey(req.params.id)),
-                redisService.del(this.#getListCacheKey())
-            ]);
 
             return res.status(204).send();
         } catch (error) {
@@ -112,20 +101,7 @@ class CrudController {
     // 🔹 Récupération de tous les éléments
     async list(req, res) {
         try {
-            const cacheKey = this.#getListCacheKey();
-            const cachedList = await redisService.get(cacheKey);
-
-            if (cachedList) {
-                return res.status(200).json({
-                    source: 'cache',
-                    count: JSON.parse(cachedList).length,
-                    elements: JSON.parse(cachedList)
-                });
-            }
-
             const items = await this.model.find({});
-            await redisService.set(cacheKey, JSON.stringify(items), this.cacheExpiration);
-
             return res.status(200).json({
                 source: 'database',
                 count: items.length,

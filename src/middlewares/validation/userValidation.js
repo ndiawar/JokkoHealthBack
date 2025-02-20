@@ -13,7 +13,7 @@ const userValidator = {
             .isLength({ min: 6 }).withMessage('Le mot de passe doit contenir au moins 6 caractères'),
         body('role')
             .notEmpty().withMessage('Le rôle est requis')
-            .isIn(['Patient', 'Médecin', 'SuperAdmin']).withMessage('Rôle invalide'),
+            .isIn(['Patient', 'Medcin', 'SuperAdmin']).withMessage('Rôle invalide'),
         body('telephone')
             .optional()
             .matches(/^\+?\d{8,15}$/).withMessage('Numéro de téléphone invalide'),

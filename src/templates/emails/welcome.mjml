@@ -1,0 +1,14 @@
+<mjml>
+    <mj-body>
+      <mj-section>
+        <mj-column>
+          <mj-text>Bienvenue {{prenom}} {{nom}} !</mj-text>
+          <mj-text>
+            Votre nom d'utilisateur est : {{username}}<br />
+            Vous pouvez vous connecter à notre plateforme en utilisant <a href="{{loginLink}}">ce lien</a>.
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-body>
+  </mjml>
+  
