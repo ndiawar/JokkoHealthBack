@@ -7,19 +7,19 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Appointments
- *   description: API for managing appointments.
+ *   name: Rendez-vous
+ *   description: API pour gérer les rendez-vous.
  */
 
 /**
  * @swagger
  * /appointments:
  *   post:
- *     summary: Create an appointment
- *     description: This endpoint allows you to create an appointment without patientId.
- *     tags: [Appointments]
+ *     summary: Créer un rendez-vous
+ *     description: Cet endpoint permet de créer un rendez-vous sans `patientId`.
+ *     tags: [Rendez-vous]
  *     requestBody:
- *       description: Data to create an appointment.
+ *       description: Données pour créer un rendez-vous.
  *       required: true
  *       content:
  *         application/json:
@@ -38,9 +38,9 @@ const router = express.Router();
  *                 enum: [Cardiologue, Généraliste, Pneumologue]
  *     responses:
  *       201:
- *         description: Appointment created successfully.
+ *         description: Rendez-vous créé avec succès.
  *       400:
- *         description: Invalid input.
+ *         description: Entrée invalide.
  */
 const appointmentValidation = [
     body('date').isISO8601().toDate(),
@@ -53,12 +53,12 @@ const appointmentValidation = [
  * @swagger
  * /appointments:
  *   get:
- *     summary: Get a list of appointments
- *     description: This endpoint returns a list of all appointments.
- *     tags: [Appointments]
+ *     summary: Obtenir une liste des rendez-vous
+ *     description: Cet endpoint retourne la liste de tous les rendez-vous.
+ *     tags: [Rendez-vous]
  *     responses:
  *       200:
- *         description: A list of appointments.
+ *         description: Liste des rendez-vous.
  *         content:
  *           application/json:
  *             schema:
@@ -84,19 +84,19 @@ router.get('/', AppointmentController.list);
  * @swagger
  * /appointments/{id}:
  *   get:
- *     summary: Get an appointment by ID
- *     description: This endpoint allows you to retrieve an appointment by its ID.
- *     tags: [Appointments]
+ *     summary: Obtenir un rendez-vous par ID
+ *     description: Cet endpoint permet de récupérer un rendez-vous par son ID.
+ *     tags: [Rendez-vous]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the appointment to retrieve.
+ *         description: L'ID du rendez-vous à récupérer.
  *         schema:
  *           type: string
  *     responses:
  *       200:
- *         description: Appointment details.
+ *         description: Détails du rendez-vous.
  *         content:
  *           application/json:
  *             schema:
@@ -113,7 +113,7 @@ router.get('/', AppointmentController.list);
  *                 specialiste:
  *                   type: string
  *       404:
- *         description: Appointment not found.
+ *         description: Rendez-vous non trouvé.
  */
 router.get('/:id', AppointmentController.read);
 
@@ -121,18 +121,18 @@ router.get('/:id', AppointmentController.read);
  * @swagger
  * /appointments/{id}:
  *   put:
- *     summary: Update an appointment
- *     description: This endpoint allows you to update an existing appointment by its ID.
- *     tags: [Appointments]
+ *     summary: Mettre à jour un rendez-vous
+ *     description: Cet endpoint permet de mettre à jour un rendez-vous existant par son ID.
+ *     tags: [Rendez-vous]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the appointment to update.
+ *         description: L'ID du rendez-vous à mettre à jour.
  *         schema:
  *           type: string
  *     requestBody:
- *       description: Data to update the appointment.
+ *       description: Données pour mettre à jour le rendez-vous.
  *       required: true
  *       content:
  *         application/json:
@@ -151,11 +151,11 @@ router.get('/:id', AppointmentController.read);
  *                 enum: [Cardiologue, Généraliste, Pneumologue]
  *     responses:
  *       200:
- *         description: Appointment updated successfully.
+ *         description: Rendez-vous mis à jour avec succès.
  *       400:
- *         description: Invalid input.
+ *         description: Entrée invalide.
  *       404:
- *         description: Appointment not found.
+ *         description: Rendez-vous non trouvé.
  */
 router.put('/:id', appointmentValidation, AppointmentController.update);
 
@@ -163,21 +163,21 @@ router.put('/:id', appointmentValidation, AppointmentController.update);
  * @swagger
  * /appointments/{id}:
  *   delete:
- *     summary: Delete an appointment
- *     description: This endpoint allows you to delete an appointment by its ID.
- *     tags: [Appointments]
+ *     summary: Supprimer un rendez-vous
+ *     description: Cet endpoint permet de supprimer un rendez-vous par son ID.
+ *     tags: [Rendez-vous]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the appointment to delete.
+ *         description: L'ID du rendez-vous à supprimer.
  *         schema:
  *           type: string
  *     responses:
  *       200:
- *         description: Appointment deleted successfully.
+ *         description: Rendez-vous supprimé avec succès.
  *       404:
- *         description: Appointment not found.
+ *         description: Rendez-vous non trouvé.
  */
 router.delete('/:id', AppointmentController.delete);
 
@@ -185,18 +185,18 @@ router.delete('/:id', AppointmentController.delete);
  * @swagger
  * /appointments/{id}/demander-participation:
  *   post:
- *     summary: Request participation in an appointment
- *     description: This endpoint allows a patient to request participation in an appointment.
- *     tags: [Appointments]
+ *     summary: Demander à participer à un rendez-vous
+ *     description: Cet endpoint permet à un patient de demander à participer à un rendez-vous.
+ *     tags: [Rendez-vous]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the appointment to request participation in.
+ *         description: L'ID du rendez-vous auquel participer.
  *         schema:
  *           type: string
  *     requestBody:
- *       description: Data to request participation.
+ *       description: Données pour demander la participation.
  *       required: true
  *       content:
  *         application/json:
@@ -208,11 +208,11 @@ router.delete('/:id', AppointmentController.delete);
  *                 format: uuid
  *     responses:
  *       200:
- *         description: Participation request successful.
+ *         description: Demande de participation réussie.
  *       400:
- *         description: Invalid input or patientId.
+ *         description: Entrée invalide ou `patientId` incorrect.
  *       404:
- *         description: Appointment not found.
+ *         description: Rendez-vous non trouvé.
  */
 const participationValidation = [
     body('patientId').notEmpty().isMongoId(),
@@ -224,23 +224,23 @@ router.post('/:id/demander-participation', participationValidation, AppointmentC
  * @swagger
  * /appointments/{id}/statu-demande:
  *   put:
- *     summary: Update participation request status
- *     description: This endpoint allows updating the status of a participation request for an appointment.
- *     tags: [Appointments]
+ *     summary: Mettre à jour le statut de la demande de participation
+ *     description: Cet endpoint permet de mettre à jour le statut d'une demande de participation à un rendez-vous.
+ *     tags: [Rendez-vous]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: The ID of the appointment to update the participation request for.
+ *         description: L'ID du rendez-vous pour lequel mettre à jour la demande.
  *         schema:
  *           type: string
  *     responses:
  *       200:
- *         description: Status updated successfully.
+ *         description: Statut mis à jour avec succès.
  *       400:
- *         description: Invalid input.
+ *         description: Entrée invalide.
  *       404:
- *         description: Appointment not found.
+ *         description: Rendez-vous non trouvé.
  */
 router.put('/:id/statu-demande', AppointmentController.gestionDemande);
 

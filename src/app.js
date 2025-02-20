@@ -56,11 +56,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Utilisation des routes
 app.use('/api', routes);
 
-// Afficher les routes disponibles
-console.log("🔹 Routes disponibles :", app._router.stack
-  .filter(r => r.route)
-  .map(r => r.route.path)
-);
+
 
 // Gestion des erreurs
 app.use((err, req, res, next) => {
