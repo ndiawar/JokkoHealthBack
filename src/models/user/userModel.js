@@ -1,39 +1,47 @@
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
-    username: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true
-    },
-    email: {
-        type: String,
-        required: true,
-        unique: true,
-        trim: true,
-        lowercase: true
-    },
-    password: {
-        type: String,
-        required: true
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now
-    }
-});
-
-// Middleware pour mettre à jour le champ `updatedAt` avant l'enregistrement
-userSchema.pre('save', function(next) {
-    this.updatedAt = Date.now();
-    next();
-});
+    nom: 
+        { 
+            type: String, 
+            required: true 
+        },
+    prenom: 
+    { 
+            type: String, 
+            required: true 
+        },
+    email: 
+        { 
+            type: String, 
+            required: true, 
+            unique: true, 
+            lowercase: true 
+        },
+    motDePasse: 
+        { 
+            type: String, 
+            required: true 
+        },
+    role: 
+        { 
+            type: String, 
+            enum: ['Patient', 'Médecin', 'SuperAdmin'], 
+            required: true 
+        },
+    dateNaissance: 
+        { 
+            type: Date 
+        },
+    sexe: 
+        { 
+            type: String 
+        },
+    telephone: 
+        { 
+            type: String 
+        },
+}, { timestamps: true, discriminatorKey: 'role' });
 
 const User = mongoose.model('User', userSchema);
-
 export default User;
