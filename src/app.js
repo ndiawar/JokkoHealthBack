@@ -8,12 +8,11 @@ import morgan from 'morgan';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
-import routes from './routes/index.js';  // Importation du fichier index.js dans le répertoire routes
+import routes from './routes/index.js';  // Importation des routes
 import jwt from 'jsonwebtoken';  // Importer jwt pour gérer l'authentification
 import { connectDB } from './config/database.js';  // Importer la fonction de connexion à la DB
 import morganMiddleware from './utils/logger/morgan.js';  // Importer ton middleware morgan personnalisé
-import swaggerUi from 'swagger-ui-express';
-import swaggerJsdoc from 'swagger-jsdoc';
+import setupSwagger from './config/swagger.js';  // Importer la configuration de Swagger
 
 // Chargement des variables d'environnement
 dotenv.config();
@@ -23,7 +22,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 // Connexion à la base de données MongoDB
-connectDB();  // Appeler la fonction connectDB pour établir la connexion
+connectDB();
 
 // Middleware
 app.use(cors());
@@ -33,24 +32,12 @@ app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
-// Swagger options
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'Jokkohealth API Documentation',
-      version: '1.0.0',
-      description: 'API documentation for managing appointments',
-    },
-  },
-  apis: ['./routes/**/*.js'], // Modifier pour inclure toutes les routes dans /routes
-};
 
-// Swagger Docs setup
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // Utilisation des routes
-app.use('/api', routes);  // Utiliser les routes définies dans `index.js`
+app.use('/api', routes);
+
+setupSwagger(app);  // Initialiser Swagger
 
 // Gestion des erreurs
 app.use((err, req, res, next) => {
