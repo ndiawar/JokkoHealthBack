@@ -35,6 +35,10 @@ app.use(morganMiddleware);  // Utiliser ton middleware de morgan pour les logs
 app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+// ou, si vous utilisez body-parser :
+// app.use(bodyParser.json());
+
 
 // Utilisation des routes
 app.use('/api', routes);  // Utiliser les routes définies dans `index.js`
