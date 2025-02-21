@@ -1,24 +1,21 @@
-import swaggerJsDoc from 'swagger-jsdoc';
+import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 
-const options = {
+// Swagger options
+const swaggerOptions = {
     definition: {
-        openapi: '3.0.0',
-        info: {
-            title: 'JokkoHealth API',
-            version: '1.0.0',
-            description: 'Documentation de l\'API pour JokkoHealth',
-        },
-        servers: [
-            {
-                url: 'http://localhost:3000/api'
-            },
-        ],
+      openapi: '3.0.0',
+      info: {
+        title: 'Appointments API',
+        version: '1.0.0',
+        description: 'API documentation for managing appointments',
+      },
     },
-    apis: ['./src/routes/v1/*.js'], // Chemin vers les fichiers de routes
-};
+    apis: ['./routes/**/*.js'], // Modifier pour inclure toutes les routes dans /routes
+  };
+  
 
-const swaggerSpec = swaggerJsDoc(options);
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
 const setupSwagger = (app) => {
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

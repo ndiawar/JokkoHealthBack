@@ -3,7 +3,7 @@ info:
   description: "API documentation for JokkoHealthBackEnd"
   version: "1.0.0"
   title: "JokkoHealth API"
-host: "localhost:3000"
+host: "localhost:3001"
 basePath: "/api/v1"
 schemes:
   - "http"

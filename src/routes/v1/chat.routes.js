@@ -5,10 +5,18 @@ const router = express.Router();
 
 /**
  * @swagger
+ * tags:
+ *   - name: Chat
+ *     description: Gestion des conversations et des messages du chat
+ */
+
+/**
+ * @swagger
  * /chats:
  *   post:
  *     summary: Créer un chat
  *     description: Crée un nouveau chat entre deux utilisateurs.
+ *     tags: [Chat]  # Ajout du tag ici
  *     requestBody:
  *       required: true
  *       content:
@@ -36,6 +44,7 @@ router.post('/', createChat);
  *   get:
  *     summary: Récupérer les chats d'un utilisateur
  *     description: Récupère tous les chats associés à un utilisateur spécifique.
+ *     tags: [Chat]  # Ajout du tag ici
  *     parameters:
  *       - name: userId
  *         in: path
@@ -60,6 +69,7 @@ router.get('/:userId', userChats);
  *   get:
  *     summary: Trouver un chat
  *     description: Trouve un chat entre deux utilisateurs.
+ *     tags: [Chat]  # Ajout du tag ici
  *     parameters:
  *       - name: firstId
  *         in: path
@@ -91,6 +101,7 @@ router.get('/find/:firstId/:secondId', findChat);
  *   get:
  *     summary: Lister tous les chats
  *     description: Récupère une liste de tous les chats.
+ *     tags: [Chat]  # Ajout du tag ici
  *     responses:
  *       200:
  *         description: Liste de tous les chats

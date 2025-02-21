@@ -5,10 +5,18 @@ const router = express.Router();
 
 /**
  * @swagger
+ * tags:
+ *   name: Messages
+ *   description: Gestion des messages du chat
+ */
+
+/**
+ * @swagger
  * /messages:
  *   post:
  *     summary: Ajouter un message
  *     description: Ajouter un nouveau message dans le chat
+ *     tags: [Messages]  # Ajout du tag ici
  *     requestBody:
  *       required: true
  *       content:
@@ -39,6 +47,7 @@ router.post('/', addMessage);
  *   get:
  *     summary: Récupérer les messages d'un chat
  *     description: Récupérer tous les messages associés à un chat spécifique
+ *     tags: [Messages]  # Ajout du tag ici
  *     parameters:
  *       - name: chatId
  *         in: path
