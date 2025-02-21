@@ -1,5 +1,7 @@
 import express from 'express';
 import { addMessage, getMessages } from '../../controllers/chats/MessageController.js';
+import { authenticate } from '../../middlewares/auth/authenticate.js'; // Middleware d'authentification
+import roleCheck from '../../middlewares/auth/roleCheck.js';  // Middleware de vérification des rôles, si nécessaire
 
 const router = express.Router();
 
@@ -16,7 +18,7 @@ const router = express.Router();
  *   post:
  *     summary: Ajouter un message
  *     description: Ajouter un nouveau message dans le chat
- *     tags: [Messages]  # Ajout du tag ici
+ *     tags: [Messages]
  *     requestBody:
  *       required: true
  *       content:
@@ -39,7 +41,7 @@ const router = express.Router();
  *       500:
  *         description: Erreur lors de l'ajout du message
  */
-router.post('/', addMessage);
+router.post('/', authenticate, roleCheck(['Patient', 'Medecin']), addMessage);
 
 /**
  * @swagger
@@ -47,7 +49,7 @@ router.post('/', addMessage);
  *   get:
  *     summary: Récupérer les messages d'un chat
  *     description: Récupérer tous les messages associés à un chat spécifique
- *     tags: [Messages]  # Ajout du tag ici
+ *     tags: [Messages]
  *     parameters:
  *       - name: chatId
  *         in: path
@@ -64,6 +66,6 @@ router.post('/', addMessage);
  *       500:
  *         description: Erreur lors de la récupération des messages
  */
-router.get('/:chatId', getMessages);
+router.get('/:chatId', authenticate, roleCheck(['Patient', 'Medecin']), getMessages);
 
 export default router;

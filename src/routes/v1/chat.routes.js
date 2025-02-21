@@ -1,5 +1,7 @@
 import express from 'express';
 import { createChat, findChat, userChats, listChats } from '../../controllers/chats/ChatController.js';
+import { authenticate } from '../../middlewares/auth/authenticate.js';
+import roleCheck from '../../middlewares/auth/roleCheck.js';
 
 const router = express.Router();
 
@@ -36,7 +38,7 @@ const router = express.Router();
  *       500:
  *         description: Erreur lors de la création du chat
  */
-router.post('/', createChat);
+router.post('/', authenticate, roleCheck(['Patient', 'Medecin']), createChat);
 
 /**
  * @swagger
@@ -61,7 +63,7 @@ router.post('/', createChat);
  *       500:
  *         description: Erreur lors de la récupération des chats
  */
-router.get('/:userId', userChats);
+router.get('/:userId', authenticate, roleCheck(['Patient', 'Medecin']), userChats);
 
 /**
  * @swagger
@@ -93,7 +95,7 @@ router.get('/:userId', userChats);
  *       500:
  *         description: Erreur lors de la recherche du chat
  */
-router.get('/find/:firstId/:secondId', findChat);
+router.get('/find/:firstId/:secondId', authenticate, roleCheck(['Patient', 'Medecin']), findChat);
 
 /**
  * @swagger
@@ -108,6 +110,6 @@ router.get('/find/:firstId/:secondId', findChat);
  *       500:
  *         description: Erreur lors de la récupération des chats
  */
-router.get('/', listChats);
+router.get('/', authenticate, roleCheck(['Patient', 'Medecin']), listChats);
 
 export default router;
