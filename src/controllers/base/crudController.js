@@ -1,6 +1,4 @@
 import { Error as MongooseError } from 'mongoose';
-import redisService from '../../services/cache/redisService.js';
-
 
 class CrudController {
     constructor(model) {
@@ -37,7 +35,6 @@ class CrudController {
     async create(req, res) {
         try {
             const newItem = await this.model.create(req.body);
-            await redisService.del(this.#getListCacheKey()); // Invalide le cache
             return res.status(201).json(newItem);
         } catch (error) {
             return this.#handleError(res, error, "Erreur lors de la création de l'élément");
@@ -47,19 +44,11 @@ class CrudController {
     // 🔹 Lecture d'un élément par ID
     async read(req, res) {
         try {
-            const cacheKey = this.#getItemCacheKey(req.params.id);
-            const cachedItem = await redisService.get(cacheKey);
-
-            if (cachedItem) {
-                return res.status(200).json(JSON.parse(cachedItem));
-            }
-
             const item = await this.model.findById(req.params.id);
             if (!item) {
                 return res.status(404).json({ message: 'Élément non trouvé' });
             }
 
-            await redisService.set(cacheKey, JSON.stringify(item), this.cacheExpiration);
             return res.status(200).json(item);
         } catch (error) {
             return this.#handleError(res, error, "Erreur lors de la récupération de l'élément");
@@ -79,11 +68,6 @@ class CrudController {
                 return res.status(404).json({ message: "Élément introuvable pour mise à jour" });
             }
 
-            await Promise.all([
-                redisService.del(this.#getItemCacheKey(req.params.id)),
-                redisService.del(this.#getListCacheKey())
-            ]);
-
             return res.status(200).json(updatedItem);
         } catch (error) {
             return this.#handleError(res, error, "Erreur lors de la mise à jour de l'élément");
@@ -98,11 +82,6 @@ class CrudController {
                 return res.status(404).json({ message: "Élément introuvable pour suppression" });
             }
 
-            await Promise.all([
-                redisService.del(this.#getItemCacheKey(req.params.id)),
-                redisService.del(this.#getListCacheKey())
-            ]);
-
             return res.status(204).send();
         } catch (error) {
             return this.#handleError(res, error, "Erreur lors de la suppression de l'élément");
@@ -112,22 +91,8 @@ class CrudController {
     // 🔹 Récupération de tous les éléments
     async list(req, res) {
         try {
-            const cacheKey = this.#getListCacheKey();
-            const cachedList = await redisService.get(cacheKey);
-
-            if (cachedList) {
-                return res.status(200).json({
-                    source: 'cache',
-                    count: JSON.parse(cachedList).length,
-                    elements: JSON.parse(cachedList)
-                });
-            }
-
             const items = await this.model.find({});
-            await redisService.set(cacheKey, JSON.stringify(items), this.cacheExpiration);
-
             return res.status(200).json({
-                source: 'database',
                 count: items.length,
                 elements: items
             });

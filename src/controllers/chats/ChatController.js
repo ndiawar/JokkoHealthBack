@@ -1,5 +1,5 @@
 import ChatModel from '../../models/chats/chatModel.js';
-import User from '../../models/user/userModel.js';
+import User from '../../models/user/userModel.js'; // Vérifiez ce chemin
 import mongoose from 'mongoose'; // Assurez-vous d'importer mongoose
 
 export const createChat = async (req, res) => {
@@ -75,3 +75,14 @@ export const findChat = async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de la recherche du chat.', details: error.message });
   }
 };
+
+// Nouvelle méthode pour lister tous les chats
+export const listChats = async (req, res) => {
+    try {
+      const chats = await ChatModel.find({}).populate('members', 'nom prenom email'); // Optionnel : populate avec des informations utilisateur
+      res.status(200).json(chats);
+    } catch (error) {
+      res.status(500).json({ error: 'Erreur lors de la récupération des chats.', details: error.message });
+    }
+  };
+  
