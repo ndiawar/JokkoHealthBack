@@ -11,7 +11,7 @@ const validateRegistration = [
         .isEmail()
         .withMessage('Veuillez fournir une adresse e-mail valide.')
         .normalizeEmail(),
-    body('password')
+    body('motDePasse')
         .isLength({ min: 6 })
         .withMessage('Le mot de passe doit contenir au moins 6 caractères.')
         .trim(),
@@ -23,7 +23,7 @@ const validateLogin = [
         .isEmail()
         .withMessage('Veuillez fournir une adresse e-mail valide.')
         .normalizeEmail(),
-    body('password')
+    body('motDePasse')
         .isLength({ min: 6 })
         .withMessage('Le mot de passe doit contenir au moins 6 caractères.')
         .trim(),

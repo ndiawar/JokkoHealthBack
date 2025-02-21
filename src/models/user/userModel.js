@@ -34,17 +34,14 @@ const userSchema = new mongoose.Schema({
           'Numéro de téléphone invalide. Il doit commencer par 70, 75, 76, 77, 78 suivi de 7 chiffres.'
         ]
     },
-    username: { type: String, unique: true, required: true }, // Ajout du champ username
-        // Autres champs...
-        etat: { 
-            type: String, 
-            enum: ['actif', 'bloqué', 'archivé'], 
-            default: 'actif' 
-        },
-        // Autres champs...
-    
+    username: { type: String, unique: true, required: true },
+    // Indique si l'utilisateur est bloqué
+    blocked: { type: Boolean, default: false },
+    // Indique si l'utilisateur est archivé
+    archived: { type: Boolean, default: false },
+    resetPasswordAttempts: { type: Number, default: 0 },
+    lastResetPasswordAttempt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
 export default User;
-

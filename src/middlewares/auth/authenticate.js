@@ -1,42 +1,36 @@
 import jwt from 'jsonwebtoken';
 import { promisify } from 'util';
 import User from '../../models/user/userModel.js';
+import BlacklistedToken from '../../models/auth/blacklistedToken.js';
+
 
 // Promisify pour transformer jwt.verify en fonction asynchrone
 const verifyToken = promisify(jwt.verify);
 
 // Middleware d'authentification
 export const authenticate = async (req, res, next) => {
-    // Récupérer le token depuis l'en-tête Authorization
     const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
 
-    // Vérifier si le token est présent
     if (!token) {
         return res.status(401).json({ message: 'Aucun token fourni' });
     }
 
     try {
-        // Décoder le token JWT pour obtenir l'ID de l'utilisateur
+        // Décoder et vérifier le token JWT
         const decoded = await verifyToken(token, process.env.JWT_SECRET);
 
-        // Récupérer l'utilisateur correspondant dans la base de données
         const user = await User.findById(decoded.id);
-
-        // Si l'utilisateur n'est pas trouvé
         if (!user) {
             return res.status(401).json({ message: 'Utilisateur non trouvé' });
         }
 
-        // Attacher l'utilisateur authentifié à la requête (pour l'utiliser dans les routes suivantes)
         req.user = user;
-
-        // Passer au prochain middleware ou à la route
-        next();
+        next(); // Passer au middleware suivant
     } catch (error) {
-        // Si une erreur se produit lors de la vérification du token, retour d'une erreur Unauthorized
         return res.status(401).json({ message: 'Non autorisé', error: error.message });
     }
 };
+
 
 // Middleware pour récupérer les informations de l'utilisateur authentifié
 export const getAuthenticatedUser = (req, res) => {
@@ -60,3 +54,28 @@ export const getAuthenticatedUser = (req, res) => {
     // Si l'utilisateur n'est pas authentifié
     return res.status(401).json({ message: 'Utilisateur non authentifié' });
 };
+
+
+export const authMiddleware = async (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ message: 'Accès refusé. Aucun token fourni.' });
+    }
+
+    // Vérifier si le token est blacklisté
+    const blacklisted = await BlacklistedToken.findOne({ token });
+    if (blacklisted) {
+        return res.status(401).json({ message: "Token invalide. Veuillez vous reconnecter." });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        return res.status(401).json({ message: "Token invalide ou expiré." });
+    }
+};
+
+export default authMiddleware;

@@ -1,0 +1,40 @@
+<mjml>
+  <mj-head>
+    <mj-attributes>
+      <mj-all font-family="Helvetica, Arial, sans-serif" />
+      <mj-text font-size="16px" color="#525252" line-height="24px" />
+      <mj-button background-color="#3E7E8C" color="#ffffff" font-size="16px" padding="15px 30px" border-radius="5px" />
+    </mj-attributes>
+    <mj-style inline="inline">
+      .body-section { padding: 20px 0; }
+      .header-text { font-size: 24px; font-weight: bold; color: #3E7E8C; }
+      .sub-text { font-size: 16px; }
+    </mj-style>
+  </mj-head>
+  <mj-body background-color="#f4f4f4">
+    <mj-section background-color="#ffffff" padding="20px" border-radius="8px" css-class="body-section">
+      <mj-column>
+        <mj-text css-class="header-text" align="center">
+          Mise à jour de votre compte
+        </mj-text>
+        <mj-divider border-color="#3E7E8C" border-width="2px" padding="10px 0" />
+        <mj-text align="left">
+          Bonjour {{prenom}},
+        </mj-text>
+        <mj-text align="left" padding-bottom="20px">
+          Votre compte a été <strong>{{action}}</strong> avec succès. Si vous avez des questions, n'hésitez pas à contacter notre support.
+        </mj-text>
+        <mj-button href="https://jokkohealth.com/login" align="center">
+          Se connecter
+        </mj-button>
+      </mj-column>
+    </mj-section>
+    <mj-section padding="10px 0">
+      <mj-column>
+        <mj-text align="center" font-size="14px" color="#9b9b9b">
+          © 2025 JokkoHealth. Tous droits réservés.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

@@ -10,6 +10,8 @@ import mjml from 'mjml';
 import emailService from '../../services/email/emailService.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import BlacklistedToken from '../../models/auth/blacklistedToken.js'; // Import du modèle
+
 
 // Utilisation de fileURLToPath pour obtenir le répertoire actuel
 const __filename = fileURLToPath(import.meta.url);
@@ -145,6 +147,14 @@ class UserController extends CrudController {
                 return res.status(401).json({ message: 'Identifiants invalides' });
             }
 
+            // Vérifier si l'utilisateur est bloqué ou archivé
+            if (user.blocked) {
+                return res.status(403).json({ message: 'Accès refusé : utilisateur bloqué' });
+            }
+            if (user.archived) {
+                return res.status(403).json({ message: 'Accès refusé : utilisateur archivé' });
+            }
+
             // Vérifier le mot de passe
             const isMatch = await bcrypt.compare(motDePasse, user.motDePasse);
             if (!isMatch) {
@@ -188,80 +198,145 @@ class UserController extends CrudController {
         }
     }
 
-    // 📌 Méthode pour bloquer un utilisateur
+    // 📌 Méthode générique pour gérer les actions sur un ou plusieurs utilisateurs
+       async updateUserState(req, res) {
+        // On attend un tableau d'IDs et une action : 'block', 'unblock', 'archive', 'unarchive'
+        const { ids, action } = req.body; // ex: { ids: ['id1', 'id2'], action: 'block' }
+
+        if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "Aucun identifiant fourni." });
+        }
+
+        // Définir l'état cible et le libellé d'action (pour l'email) en fonction de l'action
+        let update, actionLabel;
+        switch (action) {
+        case 'block':
+            update = { blocked: true };
+            actionLabel = 'bloqué';
+            break;
+        case 'unblock':
+            update = { blocked: false };
+            actionLabel = 'débloqué';
+            break;
+        case 'archive':
+            update = { archived: true };
+            actionLabel = 'archivé';
+            break;
+        case 'unarchive':
+            update = { archived: false };
+            actionLabel = 'désarchivé';
+            break;
+        default:
+            return res.status(400).json({ message: "Action invalide." });
+        }
+
+        try {
+        // Mettre à jour tous les utilisateurs dont l'état doit être modifié
+        const result = await User.updateMany(
+            { _id: { $in: ids } },
+            { $set: update }
+        );
+
+        // Récupérer les utilisateurs mis à jour
+        const users = await User.find({ _id: { $in: ids } });
+
+        // Charger le template MJML
+        const mjmlFilePath = path.join(
+            __dirname,
+            '../../../src/templates/emails/etatUser/etat.mjml'
+        );
+        const mjmlContent = fs.readFileSync(mjmlFilePath, 'utf8');
+        const { html } = mjml(mjmlContent);
+
+        // Envoyer un email à chaque utilisateur mis à jour
+        for (const user of users) {
+            // Remplacer les variables dans le template HTML
+            const htmlContent = html
+            .replace('{{prenom}}', user.prenom)
+            .replace('{{action}}', actionLabel);
+            
+            // Envoi de l'email via le service email
+            await emailService.sendEmail({
+            to: user.email,
+            subject: `Votre compte a été ${actionLabel}`,
+            text: `Bonjour ${user.prenom}, votre compte a été ${actionLabel}.`,
+            html: htmlContent,
+            });
+        }
+
+        return res.status(200).json({
+            message: `Action '${action}' effectuée sur ${result.nModified} utilisateur(s).`,
+            users
+        });
+        } catch (error) {
+        return res.status(500).json({ message: "Erreur serveur", error });
+        }
+    }
+
+    // Méthode pour bloquer un utilisateur (action sur un seul utilisateur)
     async blockUser(req, res) {
-        const { id } = req.params;
-
-        try {
-            const user = await User.findById(id);
-            if (!user) {
-                return res.status(404).json({ message: 'Utilisateur non trouvé' });
-            }
-
-            // Vérifier si l'utilisateur est déjà bloqué
-            if (user.etat === 'bloqué') {
-                return res.status(400).json({ message: 'L\'utilisateur est déjà bloqué' });
-            }
-
-            // Mettre à jour l'état de l'utilisateur à "bloqué"
-            user.etat = 'bloqué';
-            await user.save();
-
-            return res.status(200).json({ message: 'Utilisateur bloqué avec succès', user });
-        } catch (error) {
-            return res.status(500).json({ message: 'Erreur serveur', error });
-        }
+        req.body = {
+        ids: [req.params.id],
+        action: 'block'
+        };
+        return this.updateUserState(req, res);
     }
 
-    // 📌 Méthode pour débloquer un utilisateur
+    // Méthode pour débloquer un utilisateur (action sur un seul utilisateur)
     async unblockUser(req, res) {
-        const { id } = req.params;
-
-        try {
-            const user = await User.findById(id);
-            if (!user) {
-                return res.status(404).json({ message: 'Utilisateur non trouvé' });
-            }
-
-            // Vérifier si l'utilisateur est déjà débloqué
-            if (user.etat !== 'bloqué') {
-                return res.status(400).json({ message: 'L\'utilisateur n\'est pas bloqué' });
-            }
-
-            // Mettre à jour l'état de l'utilisateur à "actif"
-            user.etat = 'actif';
-            await user.save();
-
-            return res.status(200).json({ message: 'Utilisateur débloqué avec succès', user });
-        } catch (error) {
-            return res.status(500).json({ message: 'Erreur serveur', error });
-        }
+        req.body = {
+        ids: [req.params.id],
+        action: 'unblock'
+        };
+        return this.updateUserState(req, res);
     }
 
-    // 📌 Méthode pour archiver un utilisateur (remplace la suppression)
+    // Méthode pour archiver un utilisateur (action sur un seul utilisateur)
     async archiveUser(req, res) {
-        const { id } = req.params;
+        req.body = {
+        ids: [req.params.id],
+        action: 'archive'
+        };
+        return this.updateUserState(req, res);
+    }
 
+    // Méthode pour désarchiver un utilisateur (action sur un seul utilisateur)
+    async unarchiveUser(req, res) {
+        req.body = {
+        ids: [req.params.id],
+        action: 'unarchive'
+        };
+        return this.updateUserState(req, res);
+    }
+    // 📌 Déconnexion d'un utilisateur
+    async logout(req, res) {
         try {
-            const user = await User.findById(id);
-            if (!user) {
-                return res.status(404).json({ message: 'Utilisateur non trouvé' });
+            const token = req.headers.authorization?.split(' ')[1]; // Récupérer le token depuis le header
+            
+            if (!token) {
+                return res.status(400).json({ message: "Token manquant" });
             }
-
-            // Vérifier si l'utilisateur est déjà archivé
-            if (user.etat === 'archivé') {
-                return res.status(400).json({ message: 'L\'utilisateur est déjà archivé' });
+    
+            // Vérifier et décoder le token pour obtenir ses informations
+            const decoded = jwt.verify(token, process.env.JWT_SECRET); // Utilisation de verify au lieu de decode
+            if (!decoded) {
+                return res.status(400).json({ message: "Token invalide" });
             }
-
-            // Mettre à jour l'état de l'utilisateur à "archivé"
-            user.etat = 'archivé';
-            await user.save();
-
-            return res.status(200).json({ message: 'Utilisateur archivé avec succès', user });
+    
+            // Ajouter le token à la liste noire avec sa date d'expiration
+            const blacklistedToken = new BlacklistedToken({
+                token,
+                expiresAt: new Date(decoded.exp * 1000) // Convertir les secondes en millisecondes
+            });
+    
+            await blacklistedToken.save();
+    
+            return res.status(200).json({ message: "Déconnexion réussie" });
         } catch (error) {
-            return res.status(500).json({ message: 'Erreur serveur', error });
+            return res.status(500).json({ message: "Erreur lors de la déconnexion", error: error.message });
         }
     }
+    
 
 }
 
