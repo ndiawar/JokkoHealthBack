@@ -53,9 +53,9 @@ paths:
       summary: "Récupérer tous les utilisateurs"
       description: "Récupère la liste de tous les utilisateurs stockés dans la base de données."
       responses:
-        200:
+        "200":
           description: "Liste des utilisateurs récupérée avec succès"
-        500:
+        "500":
           description: "Erreur interne du serveur"
 
     post:
@@ -68,9 +68,9 @@ paths:
             schema:
               $ref: "#/components/schemas/RegisterRequest"
       responses:
-        201:
+        "201":
           description: "Utilisateur créé avec succès"
-        400:
+        "400":
           description: "Données invalides"
 
   /users/{id}:
@@ -85,9 +85,9 @@ paths:
             type: "string"
           description: "ID de l'utilisateur"
       responses:
-        200:
+        "200":
           description: "Utilisateur trouvé"
-        404:
+        "404":
           description: "Utilisateur non trouvé"
 
     put:
@@ -107,11 +107,11 @@ paths:
             schema:
               $ref: "#/components/schemas/RegisterRequest"
       responses:
-        200:
+        "200":
           description: "Utilisateur mis à jour avec succès"
-        404:
+        "404":
           description: "Utilisateur non trouvé"
-        400:
+        "400":
           description: "Données invalides"
 
     delete:
@@ -125,10 +125,145 @@ paths:
             type: "string"
           description: "ID de l'utilisateur"
       responses:
-        204:
+        "204":
           description: "Utilisateur supprimé avec succès"
-        404:
+        "404":
           description: "Utilisateur non trouvé"
+
+  /users/preferences:
+    get:
+      summary: "Get user preferences"
+      description: "Retrieves the preferences of the logged-in user."
+      responses:
+        "200":
+          description: "Successful retrieval of user preferences"
+        "401":
+          description: "Unauthorized"
+
+  /messages:
+    post:
+      summary: "Add a message"
+      description: "Adds a new message to the chat."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                senderId:
+                  type: string
+                  example: "67b74745dea578a10872721e"
+                text:
+                  type: string
+                  example: "Hello, how are you?"
+                chatId:
+                  type: string
+                  example: "67b87ccd852422ff79dfaf32"
+      responses:
+        "200":
+          description: "Message added successfully"
+        "500":
+          description: "Error adding message"
+
+  /messages/{chatId}:
+    get:
+      summary: "Get messages by chat ID"
+      description: "Retrieves all messages associated with a specific chat."
+      parameters:
+        - name: "chatId"
+          in: "path"
+          required: true
+          schema:
+            type: string
+            example: "67b87ccd852422ff79dfaf32"
+          description: "ID of the chat to retrieve messages from"
+      responses:
+        "200":
+          description: "Successful retrieval of messages"
+        "404":
+          description: "Chat not found"
+        "500":
+          description: "Error retrieving messages"
+
+  /chats:
+    post:
+      summary: "Create a chat"
+      description: "Creates a new chat between two users."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                senderId:
+                  type: string
+                  example: "67b74745dea578a10872721e"
+                receiverId:
+                  type: string
+                  example: "67b74756dea578a108727220"
+      responses:
+        "200":
+          description: "Chat created successfully"
+        "500":
+          description: "Error creating chat"
+    get:
+      summary: "List all chats"
+      description: "Retrieves a list of all chats."
+      responses:
+        "200":
+          description: "Successful retrieval of chats"
+        "500":
+          description: "Error retrieving chats"
+
+  /chats/{userId}:
+    get:
+      summary: "Get user chats"
+      description: "Retrieves all chats for a specific user."
+      parameters:
+        - name: "userId"
+          in: "path"
+          required: true
+          schema:
+            type: string
+            example: "67b74745dea578a10872721e"
+          description: "ID of the user to retrieve chats for"
+      responses:
+        "200":
+          description: "Successful retrieval of user chats"
+        "404":
+          description: "User not found"
+        "500":
+          description: "Error retrieving chats"
+
+  /chats/find/{firstId}/{secondId}:
+    get:
+      summary: "Find a chat"
+      description: "Finds a chat between two users."
+      parameters:
+        - name: "firstId"
+          in: "path"
+          required: true
+          schema:
+            type: string
+            example: "67b74745dea578a10872721e"
+          description: "ID of the first user"
+        - name: "secondId"
+          in: "path"
+          required: true
+          schema:
+            type: string
+            example: "67b74756dea578a108727220"
+          description: "ID of the second user"
+      responses:
+        "200":
+          description: "Chat found successfully"
+        "404":
+          description: "Chat not found"
+        "500":
+          description: "Error finding chat"
+
 
 components:
   securitySchemes:
@@ -196,3 +331,4 @@ components:
         expiresIn:
           type: integer
           example: 3600
+          description: "Expiration time of the token"

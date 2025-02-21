@@ -103,7 +103,6 @@ class CrudController {
         try {
             const items = await this.model.find({});
             return res.status(200).json({
-                source: 'database',
                 count: items.length,
                 elements: items
             });
