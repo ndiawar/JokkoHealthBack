@@ -5,6 +5,8 @@ import healthCheck from './healthCheck.js';
 import ChatRoutes from './v1/chat.routes.js';
 import MessageRoutes from './v1/message.routes.js';
 import appointmentRoutes from './v1/appointment.routes.js';
+import NotificationRoutes from './v1/notification.routes.js';
+import MedicalRoutes from './v1/medical.routes.js';
 
 const router = express.Router();
 console.log(router.stack.map(r => r.route ? r.route.path : r.name));
@@ -19,5 +21,7 @@ router.use('/users', userRoutes);
 router.use('/chats', ChatRoutes);
 router.use('/messages', MessageRoutes);
 router.use('/appointment', appointmentRoutes);
+router.use('/notifications', NotificationRoutes);
+router.use('/medical', MedicalRoutes);
 
 export default router;
