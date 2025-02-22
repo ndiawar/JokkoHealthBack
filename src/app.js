@@ -19,7 +19,7 @@ dotenv.config();
 
 // Initialisation de l'application Express
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
 // Connexion à la base de données MongoDB
 connectDB();
