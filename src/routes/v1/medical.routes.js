@@ -12,7 +12,7 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: MedicalRecords
+ *   name: Dossiers médicaux
  *   description: Opérations liées aux dossiers médicaux
  */
 
@@ -20,7 +20,7 @@ const router = express.Router();
  * @swagger
  * /api/medical:
  *   post:
- *     tags: [MedicalRecords]
+ *     tags: [Dossiers médicaux]
  *     summary: Créer un nouveau dossier médical
  *     requestBody:
  *       required: true
@@ -49,7 +49,7 @@ router.post('/', createMedicalRecord);
  * @swagger
  * /api/medical/{recordId}:
  *   get:
- *     tags: [MedicalRecords]
+ *     tags: [Dossiers médicaux]
  *     summary: Récupérer un dossier médical par ID
  *     parameters:
  *       - in: path
@@ -70,7 +70,7 @@ router.get('/:recordId', getMedicalRecordById);
  * @swagger
  * /api/medical/{recordId}:
  *   put:
- *     tags: [MedicalRecords]
+ *     tags: [Dossiers médicaux]
  *     summary: Mettre à jour un dossier médical
  *     parameters:
  *       - in: path
@@ -104,10 +104,8 @@ router.put('/:recordId', updateMedicalRecord);
  * @swagger
  * /api/medical-records/{recordId}:
  *   delete:
+ *     tags: [Dossiers médicaux]
  *     summary: Supprimer un dossier médical
- *     description: Supprime un dossier médical à partir de son ID.
- *     tags:
- *       - Dossiers médicaux
  *     parameters:
  *       - in: path
  *         name: recordId
@@ -120,6 +118,8 @@ router.put('/:recordId', updateMedicalRecord);
  *         description: Dossier médical supprimé avec succès
  *       404:
  *         description: Dossier médical non trouvé
+ *       500:
+ *         description: Erreur serveur
  */
 router.delete('/:recordId', deleteMedicalRecord);
 
