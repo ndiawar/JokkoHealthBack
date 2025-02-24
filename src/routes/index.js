@@ -7,6 +7,7 @@ import MessageRoutes from './v1/message.routes.js';
 import appointmentRoutes from './v1/appointment.routes.js';
 import NotificationRoutes from './v1/notification.routes.js';
 import MedicalRoutes from './v1/medical.routes.js';
+import logRoutes from './v1/log.routes.js';
 
 const router = express.Router();
 console.log(router.stack.map(r => r.route ? r.route.path : r.name));
@@ -23,5 +24,7 @@ router.use('/messages', MessageRoutes);
 router.use('/appointment', appointmentRoutes);
 router.use('/notifications', NotificationRoutes);
 router.use('/medical', MedicalRoutes);
+router.use('/logs', logRoutes);
+
 
 export default router;

@@ -6,6 +6,8 @@ import {
     updateMedicalRecord,
     deleteMedicalRecord
 } from '../../controllers/medical/MedicalController.js';
+import logMiddleware from '../../middlewares/logs/logMiddleware.js';
+import { authenticate } from '../../middlewares/auth/authenticate.js';
 
 const router = express.Router();
 
@@ -43,7 +45,7 @@ const router = express.Router();
  *       500:
  *         description: Erreur serveur
  */
-router.post('/', createMedicalRecord);
+router.post('/', authenticate, logMiddleware, createMedicalRecord);
 
 /**
  * @swagger
@@ -64,7 +66,7 @@ router.post('/', createMedicalRecord);
  *       404:
  *         description: Dossier médical non trouvé
  */
-router.get('/:recordId', getMedicalRecordById);
+router.get('/:recordId', authenticate, logMiddleware, getMedicalRecordById);
 
 /**
  * @swagger
@@ -98,7 +100,7 @@ router.get('/:recordId', getMedicalRecordById);
  *       404:
  *         description: Dossier médical non trouvé
  */
-router.put('/:recordId', updateMedicalRecord);
+router.put('/:recordId', authenticate, logMiddleware, updateMedicalRecord);
 
 /**
  * @swagger
@@ -121,6 +123,6 @@ router.put('/:recordId', updateMedicalRecord);
  *       500:
  *         description: Erreur serveur
  */
-router.delete('/:recordId', deleteMedicalRecord);
+router.delete('/:recordId', authenticate, logMiddleware, deleteMedicalRecord);
 
 export default router;
