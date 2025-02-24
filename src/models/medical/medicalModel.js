@@ -2,23 +2,13 @@
 import mongoose from 'mongoose';
 
 const medicalRecordSchema = new mongoose.Schema({
-    nom: {
-        type: String,
-        required: true
-    },
-    prenom: {
-        type: String,
-        required: true
-    },
-    telephone: {
-        type: String,
-        required: true
-    },
-    poids: {
+
+    patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // Référence à l'ID du patient
+    age: {
         type: Number,
         required: true
     },
-    age: {
+    poids: {
         type: Number,
         required: true
     },

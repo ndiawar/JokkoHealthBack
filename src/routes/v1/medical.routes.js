@@ -1,4 +1,3 @@
-// routes/medicalRecordRoutes.js
 import express from 'express';
 import {
     createMedicalRecord,
@@ -12,12 +11,17 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/medical-records:
+ * tags:
+ *   name: MedicalRecords
+ *   description: Opérations liées aux dossiers médicaux
+ */
+
+/**
+ * @swagger
+ * /api/medical:
  *   post:
- *     summary: Créer un dossier médical
- *     description: Crée un nouveau dossier médical avec les informations de l'utilisateur.
- *     tags:
- *       - Dossiers médicaux
+ *     tags: [MedicalRecords]
+ *     summary: Créer un nouveau dossier médical
  *     requestBody:
  *       required: true
  *       content:
@@ -25,75 +29,38 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             properties:
- *               nom:
+ *               patientId:
  *                 type: string
- *               prenom:
- *                 type: string
- *               telephone:
- *                 type: string
- *               poids:
- *                 type: number
  *               age:
+ *                 type: number
+ *               poids:
  *                 type: number
  *               groupeSanguin:
  *                 type: string
  *     responses:
  *       201:
  *         description: Dossier médical créé avec succès
+ *       500:
+ *         description: Erreur serveur
  */
 router.post('/', createMedicalRecord);
 
 /**
  * @swagger
- * /api/medical-records:
+ * /api/medical/{recordId}:
  *   get:
- *     summary: Récupérer tous les dossiers médicaux
- *     description: Récupère tous les dossiers médicaux enregistrés.
- *     tags:
- *       - Dossiers médicaux
- *     responses:
- *       200:
- *         description: Liste des dossiers médicaux
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   nom:
- *                     type: string
- *                   prenom:
- *                     type: string
- *                   telephone:
- *                     type: string
- *                   poids:
- *                     type: number
- *                   age:
- *                     type: number
- *                   groupeSanguin:
- *                     type: string
- */
-router.get('/', getAllMedicalRecords);
-
-/**
- * @swagger
- * /api/medical-records/{recordId}:
- *   get:
+ *     tags: [MedicalRecords]
  *     summary: Récupérer un dossier médical par ID
- *     description: Récupère un dossier médical en utilisant son ID.
- *     tags:
- *       - Dossiers médicaux
  *     parameters:
  *       - in: path
  *         name: recordId
  *         required: true
- *         description: L'ID du dossier médical à récupérer.
+ *         description: L'ID du dossier médical à récupérer
  *         schema:
  *           type: string
  *     responses:
  *       200:
- *         description: Dossier médical trouvé
+ *         description: Dossier médical récupéré avec succès
  *       404:
  *         description: Dossier médical non trouvé
  */
@@ -101,17 +68,15 @@ router.get('/:recordId', getMedicalRecordById);
 
 /**
  * @swagger
- * /api/medical-records/{recordId}:
+ * /api/medical/{recordId}:
  *   put:
+ *     tags: [MedicalRecords]
  *     summary: Mettre à jour un dossier médical
- *     description: Met à jour un dossier médical avec les nouvelles informations.
- *     tags:
- *       - Dossiers médicaux
  *     parameters:
  *       - in: path
  *         name: recordId
  *         required: true
- *         description: L'ID du dossier médical à mettre à jour.
+ *         description: L'ID du dossier médical à mettre à jour
  *         schema:
  *           type: string
  *     requestBody:
@@ -121,15 +86,9 @@ router.get('/:recordId', getMedicalRecordById);
  *           schema:
  *             type: object
  *             properties:
- *               nom:
- *                 type: string
- *               prenom:
- *                 type: string
- *               telephone:
- *                 type: string
- *               poids:
- *                 type: number
  *               age:
+ *                 type: number
+ *               poids:
  *                 type: number
  *               groupeSanguin:
  *                 type: string
@@ -153,7 +112,7 @@ router.put('/:recordId', updateMedicalRecord);
  *       - in: path
  *         name: recordId
  *         required: true
- *         description: L'ID du dossier médical à supprimer.
+ *         description: L'ID du dossier médical à supprimer
  *         schema:
  *           type: string
  *     responses:
