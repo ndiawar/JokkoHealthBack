@@ -4,6 +4,8 @@ import { authenticate } from '../../middlewares/auth/authenticate.js';
 import PasswordController from '../../controllers/auth/passwordController.js';
 import { passwordValidator } from '../../middlewares/validation/passwordValidation.js';
 
+
+
 const router = express.Router();
 
 /**

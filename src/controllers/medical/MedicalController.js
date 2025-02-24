@@ -2,6 +2,7 @@
 
 import MedicalRecord from '../../models/medical/medicalModel.js';  // Importer le modèle correctement
 import User from '../../models/user/userModel.js';  // Importer le modèle correctement
+import Log from '../../models/historique/logModel.js';
 
 // Créer un dossier médical
 
@@ -24,6 +25,15 @@ export const createMedicalRecord = async (req, res) => {
         });
 
         await newRecord.save();
+                
+       // 🔹 Enregistrer l'action dans les logs
+        await Log.create({
+        userId: req.user._id,
+        action: 'Création dossier médical',
+        endpoint: req.originalUrl,
+        method: req.method,
+        requestData: req.body
+        });
         res.status(201).json({ message: 'Dossier médical créé avec succès.', record: newRecord });
 
     } catch (error) {

@@ -3,6 +3,7 @@ import UserController from '../../controllers/users/userController.js';
 import { userValidator } from '../../middlewares/validation/userValidation.js';
 import { authenticate } from '../../middlewares/auth/authenticate.js';
 import roleCheck from '../../middlewares/auth/roleCheck.js';  // Import du middleware de vérification des rôles
+import logMiddleware  from '../../middlewares/logs/logMiddleware.js';
 
 const router = express.Router();
 
@@ -26,7 +27,7 @@ const router = express.Router();
  *       500:
  *         description: Erreur interne du serveur.
  */
-router.get('/', authenticate, roleCheck(['Admin', 'SuperAdmin']), UserController.list.bind(UserController));
+router.get('/', authenticate, roleCheck(['Admin', 'SuperAdmin']), logMiddleware,UserController.list.bind(UserController));
 
 /**
  * @swagger
@@ -48,7 +49,7 @@ router.get('/', authenticate, roleCheck(['Admin', 'SuperAdmin']), UserController
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.get('/:id', authenticate, roleCheck(['Admin', 'SuperAdmin', 'Médecin']), UserController.read.bind(UserController));
+router.get('/:id', authenticate, roleCheck(['Admin', 'SuperAdmin', 'Médecin']), logMiddleware, UserController.read.bind(UserController));
 
 /**
  * @swagger
@@ -110,7 +111,7 @@ router.get('/:id', authenticate, roleCheck(['Admin', 'SuperAdmin', 'Médecin']),
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.put('/:id', authenticate, roleCheck(['SuperAdmin']), UserController.updateProfile, UserController.update.bind(UserController));
+router.put('/:id', authenticate, roleCheck(['SuperAdmin']), UserController.updateProfile, logMiddleware, UserController.update.bind(UserController));
 
 /**
  * @swagger
@@ -167,7 +168,7 @@ router.put('/:id', authenticate, roleCheck(['SuperAdmin']), UserController.updat
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.patch('/:id', authenticate, roleCheck(['SuperAdmin']), UserController.updateProfile, UserController.update.bind(UserController));
+router.patch('/:id', authenticate, roleCheck(['SuperAdmin']), UserController.updateProfile, logMiddleware, UserController.update.bind(UserController));
 
 /**
  * @swagger
@@ -191,7 +192,7 @@ router.patch('/:id', authenticate, roleCheck(['SuperAdmin']), UserController.upd
  *       400:
  *         description: L'utilisateur est déjà bloqué.
  */
-router.put('/:id/block', authenticate, roleCheck(['SuperAdmin']), UserController.blockUser);
+router.put('/:id/block', authenticate, roleCheck(['SuperAdmin']), logMiddleware, UserController.blockUser);
 
 /**
  * @swagger
@@ -215,7 +216,7 @@ router.put('/:id/block', authenticate, roleCheck(['SuperAdmin']), UserController
  *       400:
  *         description: L'utilisateur n'est pas bloqué.
  */
-router.put('/:id/unblock', authenticate, roleCheck(['SuperAdmin']), UserController.unblockUser);
+router.put('/:id/unblock', authenticate, roleCheck(['SuperAdmin']), logMiddleware, UserController.unblockUser);
 
 /**
  * @swagger
@@ -239,7 +240,7 @@ router.put('/:id/unblock', authenticate, roleCheck(['SuperAdmin']), UserControll
  *       400:
  *         description: L'utilisateur est déjà archivé.
  */
-router.put('/:id/archive', authenticate, roleCheck(['SuperAdmin']), UserController.archiveUser);
+router.put('/:id/archive', authenticate, roleCheck(['SuperAdmin']), logMiddleware, UserController.archiveUser);
 
 /**
  * @swagger
@@ -263,7 +264,7 @@ router.put('/:id/archive', authenticate, roleCheck(['SuperAdmin']), UserControll
  *       400:
  *         description: L'utilisateur n'est pas archivé ou ne peut pas être désarchivé.
  */
-router.put('/:id/unarchive', authenticate, roleCheck(['SuperAdmin']), UserController.unarchiveUser);
+router.put('/:id/unarchive', authenticate, roleCheck(['SuperAdmin']), logMiddleware, UserController.unarchiveUser);
 
 /**
  * @swagger
@@ -285,7 +286,7 @@ router.put('/:id/unarchive', authenticate, roleCheck(['SuperAdmin']), UserContro
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.delete('/:id', authenticate, roleCheck(['SuperAdmin']), UserController.delete.bind(UserController));
+router.delete('/:id', authenticate, roleCheck(['SuperAdmin']), logMiddleware, UserController.delete.bind(UserController));
 
 /**
  * @swagger
@@ -345,7 +346,7 @@ router.delete('/:id', authenticate, roleCheck(['SuperAdmin']), UserController.de
  *       400:
  *         description: Données invalides.
  */
-router.post('/register', userValidator.register, UserController.register);
+router.post('/register', userValidator.register, logMiddleware, UserController.register);
 
 /**
  * @swagger
@@ -373,7 +374,7 @@ router.post('/register', userValidator.register, UserController.register);
  *       401:
  *         description: Identifiants invalides.
  */
-router.post('/login', userValidator.login, UserController.login);
+router.post('/login', userValidator.login, logMiddleware, UserController.login);
 
 /**
  * @swagger
@@ -390,6 +391,6 @@ router.post('/login', userValidator.login, UserController.login);
  *       500:
  *         description: Erreur serveur lors de la déconnexion.
  */
-router.post('/logout', authenticate, UserController.logout);
+router.post('/logout', authenticate, logMiddleware,UserController.logout);
 
 export default router;
