@@ -14,6 +14,11 @@ import setupSwagger from './config/swagger.js';
 import jwt from 'jsonwebtoken';  // Importer jwt pour gérer l'authentification
 import { connectDB } from './config/database.js';  // Importer la fonction de connexion à la DB
 
+
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+
+
+
 // Chargement des variables d'environnement
 dotenv.config();
 
@@ -33,8 +38,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 
+// 📌 Servir les fichiers statiques (ex: logo)
+app.use('/public', express.static(path.join(__dirname, '../public')));
 
-// Setup Swagger
+// 📌 Initialiser Swagger
 setupSwagger(app);
 
 // Utilisation des routes

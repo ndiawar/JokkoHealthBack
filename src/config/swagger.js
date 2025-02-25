@@ -1,17 +1,16 @@
 import express from 'express';
-import path from 'path';  // Importation de path
+import path from 'path';
 import swaggerJsDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 
-// Remplacer __dirname par import.meta.url pour obtenir le répertoire actuel
+// 📌 Définition du chemin du dossier public
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
+const publicPath = path.join(__dirname, '../public');
 
-const app = express();
+// 📌 Servir les fichiers statiques
+const swaggerStaticPath = '/public/assets/images/logo.png';
 
-// Configuration pour servir les fichiers statiques depuis 'public'
-app.use('/public', express.static(path.join(__dirname, '../../public')));
-
-// Configuration Swagger
+// 📌 Configuration Swagger
 const options = {
     definition: {
         openapi: '3.0.0',
@@ -40,30 +39,34 @@ const options = {
             },
         },
     },
-    apis: ['./src/routes/v1/*.js'], // Inclure les fichiers contenant les routes
+    apis: ['./src/routes/v1/*.js'], 
 };
 
-// Générer la documentation Swagger
+// 📌 Générer la documentation Swagger
 const swaggerSpec = swaggerJsDoc(options);
 
-// Personnaliser l'interface Swagger
-const setupSwagger = (app) => {
-    const customOptions = {
-        customCss: `
-            .swagger-ui .topbar { 
-                background-color: #2c3e50; 
-                height: 100px; 
-                padding: 0 20px;
-            }
-            .swagger-ui .topbar img {
-                height: 80px;
-                width: auto;
-                margin-top: 10px;
-            }
-        `,
-        customJs: '/public/assets/js/customLogo.js',  // Fichier JavaScript personnalisé pour ajouter le logo
-    };
+// 📌 Personnaliser Swagger UI
+const customOptions = {
+    customCss: `
+        .swagger-ui .topbar { 
+            background-color: rgb(56, 132, 207) !important;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            padding-left: 20px;
+        }
+        .swagger-ui img {
+            content: url('${swaggerStaticPath}') !important;
+            height: 60px !important;
+            width: auto;
+        }
+    `,
+    customSiteTitle: "JokkoHealth API Docs", // Modifier le titre de Swagger UI
+};
 
+// 📌 Initialiser Swagger
+const setupSwagger = (app) => {
+    app.use('/public', express.static(publicPath)); // Rendre le logo accessible
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, customOptions));
 };
 
