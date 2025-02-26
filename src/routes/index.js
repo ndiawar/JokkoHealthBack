@@ -22,7 +22,7 @@ router.use('/users', userRoutes);
 router.use('/medical', MedicalRoutes);
 router.use('/chats', ChatRoutes);
 router.use('/messages', MessageRoutes);
-router.use('/appointment', appointmentRoutes);
+router.use('/appointments', appointmentRoutes);
 router.use('/notifications', NotificationRoutes);
 router.use('/medical', MedicalRoutes);
 router.use('/logs', logRoutes);

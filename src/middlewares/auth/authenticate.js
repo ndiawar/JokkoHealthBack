@@ -9,14 +9,14 @@ const verifyToken = promisify(jwt.verify);
 
 // Middleware d'authentification
 export const authenticate = async (req, res, next) => {
-    const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
+    const token = req.cookies.jwt; // Récupérer le token depuis le cookie
 
     if (!token) {
         return res.status(401).json({ message: 'Aucun token fourni' });
     }
 
     try {
-        // Décoder et vérifier le token JWT
+        // Vérification du token JWT
         const decoded = await verifyToken(token, process.env.JWT_SECRET);
 
         const user = await User.findById(decoded.id);
@@ -25,12 +25,11 @@ export const authenticate = async (req, res, next) => {
         }
 
         req.user = user;
-        next(); // Passer au middleware suivant
+        next();
     } catch (error) {
         return res.status(401).json({ message: 'Non autorisé', error: error.message });
     }
 };
-
 
 // Middleware pour récupérer les informations de l'utilisateur authentifié
 export const getAuthenticatedUser = (req, res) => {

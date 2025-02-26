@@ -8,7 +8,7 @@ info:
     Le manque de médecins spécialistes, combiné à une distance importante entre les patients et les hôpitaux, entraîne des délais critiques dans les situations d'urgence.
 
 servers:
-  - url: "http://localhost:3000/api"
+  - url: "http://localhost:3001/api"
     description: "Serveur de développement"
 
 paths:

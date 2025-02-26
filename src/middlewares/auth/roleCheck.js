@@ -6,11 +6,17 @@ const roleCheck = (roles = []) => {
             return res.status(401).json({ message: 'Utilisateur non authentifié' });
         }
 
-        // Vérifier si l'utilisateur a un rôle correspondant
-        const userRole = req.user.role; // Le rôle est supposé être attaché à la requête après le middleware d'authentification
+        // Vérification du statut de l'utilisateur
+        if (req.user.blocked) {
+            return res.status(403).json({ message: 'Votre compte est bloqué. Contactez un administrateur.' });
+        }
 
-        // Si l'utilisateur n'a pas le bon rôle
-        if (!roles.includes(userRole)) {
+        if (req.user.archived) {
+            return res.status(403).json({ message: 'Votre compte est archivé. Accès interdit.' });
+        }
+
+        // Vérification du rôle
+        if (!roles.includes(req.user.role)) {
             return res.status(403).json({ message: 'Accès refusé. Permissions insuffisantes.' });
         }
 

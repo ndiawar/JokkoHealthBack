@@ -87,14 +87,30 @@ class CrudController {
     // 🔹 Suppression d'un élément par ID
     async delete(req, res) {
         try {
-            const deletedItem = await this.model.findByIdAndDelete(req.params.id);
-            if (!deletedItem) {
+            const itemId = req.params.id;
+
+            // Vérifier si l'ID est valide
+            if (!itemId.match(/^[0-9a-fA-F]{24}$/)) {
+                return res.status(400).json({ message: "ID invalide" });
+            }
+
+            // Vérifier si l'élément existe
+            const existingItem = await this.model.findById(itemId);
+            if (!existingItem) {
                 return res.status(404).json({ message: "Élément introuvable pour suppression" });
             }
 
-            return res.status(204).send();
+            // Supprimer l'élément
+            await this.model.findByIdAndDelete(itemId);
+
+            return res.status(200).json({ 
+                message: "Élément supprimé avec succès", 
+                deletedItem: existingItem 
+            });
+
         } catch (error) {
-            return this.#handleError(res, error, "Erreur lors de la suppression de l'élément");
+            console.error("Erreur lors de la suppression :", error);
+            return res.status(500).json({ error: "Erreur serveur lors de la suppression de l'élément" });
         }
     }
 

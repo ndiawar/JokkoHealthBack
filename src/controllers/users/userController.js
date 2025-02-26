@@ -1,7 +1,6 @@
-import User from '../../models/user/userModel.js';
 import ProfileModel from '../../models/user/profileModel.js';
-import CrudController from '../base/crudController.js'
-import { validationResult } from 'express-validator';
+import CrudController from '../base/crudController.js';
+import { validationResult } from 'express-validator'; // IMPORT UNIQUE
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
@@ -11,15 +10,21 @@ import emailService from '../../services/email/emailService.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import BlacklistedToken from '../../models/auth/blacklistedToken.js'; // Import du modèle
-
+import User from '../../models/user/userModel.js';
 
 // Utilisation de fileURLToPath pour obtenir le répertoire actuel
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 class UserController extends CrudController {
+
     constructor() {
         super(User);
+        this.updateUserState = this.updateUserState.bind(this);
+        this.blockUser = this.blockUser.bind(this);
+        this.unblockUser = this.unblockUser.bind(this);
+        this.archiveUser = this.archiveUser.bind(this);
+        this.unarchiveUser = this.unarchiveUser.bind(this);
     }
 
     // 📌 Inscription d'un utilisateur    
@@ -131,10 +136,10 @@ class UserController extends CrudController {
         }
     }
 
-    // Fin de la fonction register
     // 📌 Connexion d'un utilisateur
     async login(req, res) {
         try {
+            // Vérification des erreurs de validation des entrées
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
                 return res.status(400).json({ errors: errors.array() });
@@ -142,34 +147,52 @@ class UserController extends CrudController {
 
             const { email, motDePasse } = req.body;
 
+            if (!email || !motDePasse) {
+                return res.status(400).json({ message: 'Email et mot de passe sont requis' });
+            }
+
             const user = await User.findOne({ email });
             if (!user) {
                 return res.status(401).json({ message: 'Identifiants invalides' });
             }
 
-            // Vérifier si l'utilisateur est bloqué ou archivé
-            if (user.blocked) {
-                return res.status(403).json({ message: 'Accès refusé : utilisateur bloqué' });
-            }
-            if (user.archived) {
-                return res.status(403).json({ message: 'Accès refusé : utilisateur archivé' });
+            if (user.blocked || user.archived) {
+                return res.status(403).json({ message: 'Accès refusé : utilisateur bloqué ou archivé' });
             }
 
-            // Vérifier le mot de passe
             const isMatch = await bcrypt.compare(motDePasse, user.motDePasse);
             if (!isMatch) {
                 return res.status(401).json({ message: 'Identifiants invalides' });
             }
 
-            // Générer un token JWT
+            // Génération du token JWT
             const token = jwt.sign(
                 { id: user._id, role: user.role },
                 process.env.JWT_SECRET,
                 { expiresIn: '1h' }
             );
 
-            return res.status(200).json({ token, user });
+            // Configuration des cookies
+            res.cookie('jwt', token, {
+                httpOnly: true, // Empêche l'accès au cookie par JavaScript côté client
+                secure: process.env.NODE_ENV === 'production', // Assure l'utilisation de HTTPS en production
+                sameSite: 'Strict', // Empêche les attaques CSRF
+                maxAge: 3600000 // 1h en millisecondes
+            });
+
+            return res.status(200).json({
+                message: 'Connexion réussie',
+                user: {
+                    id: user._id,
+                    nom: user.nom,
+                    prenom: user.prenom,
+                    email: user.email,
+                    role: user.role
+                }
+            });
+
         } catch (error) {
+            console.error('Erreur lors de la connexion de l\'utilisateur:', error);
             return res.status(500).json({ error: 'Erreur lors de la connexion' });
         }
     }
@@ -182,162 +205,141 @@ class UserController extends CrudController {
                 return res.status(400).json({ errors: errors.array() });
             }
 
+            const userId = req.params.id;
+
+            // Vérifier si l'utilisateur existe
+            const existingUser = await User.findById(userId);
+            if (!existingUser) {
+                return res.status(404).json({ message: 'Utilisateur non trouvé' });
+            }
+
+            // Vérifier si l'utilisateur a le droit de modifier ce profil
+            if (req.user.role !== 'SuperAdmin' && req.user._id.toString() !== userId) {
+                return res.status(403).json({ message: 'Accès refusé. Vous ne pouvez modifier que votre propre profil.' });
+            }
+
+            // Mise à jour de l'utilisateur
             const updatedUser = await User.findByIdAndUpdate(
-                req.user.id,
+                userId,
                 req.body,
                 { new: true, runValidators: true }
             );
 
-            if (!updatedUser) {
-                return res.status(404).json({ message: 'Utilisateur non trouvé' });
-            }
+            return res.status(200).json({ message: 'Profil mis à jour avec succès', user: updatedUser });
 
-            return res.status(200).json(updatedUser);
         } catch (error) {
-            return res.status(500).json({ error: 'Erreur lors de la mise à jour du profil' });
+            console.error('Erreur lors de la mise à jour du profil:', error);
+            return res.status(500).json({ error: 'Erreur serveur lors de la mise à jour du profil' });
         }
     }
 
     // 📌 Méthode générique pour gérer les actions sur un ou plusieurs utilisateurs
-       async updateUserState(req, res) {
-        // On attend un tableau d'IDs et une action : 'block', 'unblock', 'archive', 'unarchive'
-        const { ids, action } = req.body; // ex: { ids: ['id1', 'id2'], action: 'block' }
-
+    async updateUserState(req, res, ids, action) {
         if (!Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).json({ message: "Aucun identifiant fourni." });
+            return res.status(400).json({ message: "Aucun identifiant fourni." });
         }
 
-        // Définir l'état cible et le libellé d'action (pour l'email) en fonction de l'action
         let update, actionLabel;
         switch (action) {
-        case 'block':
-            update = { blocked: true };
-            actionLabel = 'bloqué';
-            break;
-        case 'unblock':
-            update = { blocked: false };
-            actionLabel = 'débloqué';
-            break;
-        case 'archive':
-            update = { archived: true };
-            actionLabel = 'archivé';
-            break;
-        case 'unarchive':
-            update = { archived: false };
-            actionLabel = 'désarchivé';
-            break;
-        default:
-            return res.status(400).json({ message: "Action invalide." });
+            case 'block':
+                update = { blocked: true };
+                actionLabel = 'bloqué';
+                break;
+            case 'unblock':
+                update = { blocked: false };
+                actionLabel = 'débloqué';
+                break;
+            case 'archive':
+                update = { archived: true };
+                actionLabel = 'archivé';
+                break;
+            case 'unarchive':
+                update = { archived: false };
+                actionLabel = 'désarchivé';
+                break;
+            default:
+                return res.status(400).json({ message: "Action invalide." });
         }
 
         try {
-        // Mettre à jour tous les utilisateurs dont l'état doit être modifié
-        const result = await User.updateMany(
-            { _id: { $in: ids } },
-            { $set: update }
-        );
+            // Mise à jour des utilisateurs concernés
+            const result = await User.updateMany({ _id: { $in: ids } }, { $set: update });
+            if (result.modifiedCount === 0) {
+                return res.status(404).json({ message: "Aucun utilisateur trouvé pour cette action." });
+            }
 
-        // Récupérer les utilisateurs mis à jour
-        const users = await User.find({ _id: { $in: ids } });
+            // Récupération des utilisateurs mis à jour
+            const users = await User.find({ _id: { $in: ids } });
 
-        // Charger le template MJML
-        const mjmlFilePath = path.join(
-            __dirname,
-            '../../../src/templates/emails/etatUser/etat.mjml'
-        );
-        const mjmlContent = fs.readFileSync(mjmlFilePath, 'utf8');
-        const { html } = mjml(mjmlContent);
+            // Chargement du template email
+            const mjmlFilePath = path.join(__dirname, '../../../src/templates/emails/etatUser/etat.mjml');
+            const mjmlContent = fs.readFileSync(mjmlFilePath, 'utf8');
+            const { html } = mjml(mjmlContent);
 
-        // Envoyer un email à chaque utilisateur mis à jour
-        for (const user of users) {
-            // Remplacer les variables dans le template HTML
-            const htmlContent = html
-            .replace('{{prenom}}', user.prenom)
-            .replace('{{action}}', actionLabel);
-            
-            // Envoi de l'email via le service email
-            await emailService.sendEmail({
-            to: user.email,
-            subject: `Votre compte a été ${actionLabel}`,
-            text: `Bonjour ${user.prenom}, votre compte a été ${actionLabel}.`,
-            html: htmlContent,
+            // Envoi d'un email à chaque utilisateur concerné
+            for (const user of users) {
+                const htmlContent = html.replace('{{prenom}}', user.prenom).replace('{{action}}', actionLabel);
+                await emailService.sendEmail({
+                    to: user.email,
+                    subject: `Votre compte a été ${actionLabel}`,
+                    text: `Bonjour ${user.prenom}, votre compte a été ${actionLabel}.`,
+                    html: htmlContent,
+                });
+            }
+
+            return res.status(200).json({
+                message: `Action '${action}' effectuée sur ${result.modifiedCount} utilisateur(s).`,
+                users
             });
-        }
-
-        return res.status(200).json({
-            message: `Action '${action}' effectuée sur ${result.nModified} utilisateur(s).`,
-            users
-        });
         } catch (error) {
-        return res.status(500).json({ message: "Erreur serveur", error });
+            console.error("Erreur lors de la mise à jour de l'état des utilisateurs:", error);
+            return res.status(500).json({ message: "Erreur serveur", error });
         }
     }
 
-    // Méthode pour bloquer un utilisateur (action sur un seul utilisateur)
+    // 📌 Méthodes spécifiques pour bloquer/débloquer/archiver/désarchiver un utilisateur
     async blockUser(req, res) {
-        req.body = {
-        ids: [req.params.id],
-        action: 'block'
-        };
-        return this.updateUserState(req, res);
+        return this.updateUserState(req, res, [req.params.id], 'block');
     }
 
-    // Méthode pour débloquer un utilisateur (action sur un seul utilisateur)
     async unblockUser(req, res) {
-        req.body = {
-        ids: [req.params.id],
-        action: 'unblock'
-        };
-        return this.updateUserState(req, res);
+        return this.updateUserState(req, res, [req.params.id], 'unblock');
     }
 
-    // Méthode pour archiver un utilisateur (action sur un seul utilisateur)
     async archiveUser(req, res) {
-        req.body = {
-        ids: [req.params.id],
-        action: 'archive'
-        };
-        return this.updateUserState(req, res);
+        return this.updateUserState(req, res, [req.params.id], 'archive');
     }
 
-    // Méthode pour désarchiver un utilisateur (action sur un seul utilisateur)
     async unarchiveUser(req, res) {
-        req.body = {
-        ids: [req.params.id],
-        action: 'unarchive'
-        };
-        return this.updateUserState(req, res);
+        return this.updateUserState(req, res, [req.params.id], 'unarchive');
     }
-    // 📌 Déconnexion d'un utilisateur
-    async logout(req, res) {
+    
+     // 📌 Déconnexion d'un utilisateur
+     async logout(req, res) {
         try {
-            const token = req.headers.authorization?.split(' ')[1]; // Récupérer le token depuis le header
-            
+            const token = req.headers.authorization?.split(' ')[1];
             if (!token) {
                 return res.status(400).json({ message: "Token manquant" });
             }
-    
-            // Vérifier et décoder le token pour obtenir ses informations
-            const decoded = jwt.verify(token, process.env.JWT_SECRET); // Utilisation de verify au lieu de decode
+
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
             if (!decoded) {
                 return res.status(400).json({ message: "Token invalide" });
             }
-    
-            // Ajouter le token à la liste noire avec sa date d'expiration
+
+            // Ajouter le token à la liste noire
             const blacklistedToken = new BlacklistedToken({
                 token,
-                expiresAt: new Date(decoded.exp * 1000) // Convertir les secondes en millisecondes
+                expiresAt: new Date(decoded.exp * 1000)
             });
-    
+
             await blacklistedToken.save();
-    
             return res.status(200).json({ message: "Déconnexion réussie" });
         } catch (error) {
-            return res.status(500).json({ message: "Erreur lors de la déconnexion", error: error.message });
+            console.error("Erreur lors de la déconnexion:", error);
+            return res.status(500).json({ message: "Erreur serveur lors de la déconnexion", error: error.message });
         }
     }
-    
-
 }
 
 // Exporte la classe directement
