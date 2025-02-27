@@ -17,8 +17,6 @@ import { connectDB } from './config/database.js';  // Importer la fonction de co
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
-
-
 // Chargement des variables d'environnement
 dotenv.config();
 
@@ -29,8 +27,15 @@ const port = process.env.PORT || 3001;
 // Connexion à la base de données MongoDB
 connectDB();
 
+// Configuration CORS avec les bonnes options
+const corsOptions = {
+  origin: "http://localhost:3000", // Permettre les requêtes de React
+  methods: ["GET", "POST", "PUT", "DELETE"], // Ajouter d'autres méthodes HTTP si nécessaire
+  credentials: true, // Permettre les informations d'identification (cookies, en-têtes d'autorisation)
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(helmet());
 app.use(morganMiddleware);
 app.use(cookieParser());
@@ -57,10 +62,9 @@ app.use((err, req, res, next) => {
 const server = createServer(app);
 
 // Initialisation de Socket.IO
-// Initialisation de Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3001", // Permettre l'accès depuis le client React
+    origin: "http://localhost:3000", // Permettre l'accès depuis le client React
   },
 });
 
@@ -95,7 +99,6 @@ io.on("connection", (socket) => {
     }
   });
 });
-
 
 // Démarrage de l'application
 server.listen(port, () => {
