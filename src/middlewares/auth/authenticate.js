@@ -9,7 +9,7 @@ const verifyToken = promisify(jwt.verify);
 
 // Middleware d'authentification
 export const authenticate = async (req, res, next) => {
-    const token = req.cookies.jwt; // Récupérer le token depuis le cookie
+    const token = req.cookies.jwt; // Récupère le token depuis le cookie
 
     if (!token) {
         return res.status(401).json({ message: 'Aucun token fourni' });
@@ -24,12 +24,13 @@ export const authenticate = async (req, res, next) => {
             return res.status(401).json({ message: 'Utilisateur non trouvé' });
         }
 
-        req.user = user;
+        req.user = user;  // Attache l'utilisateur à la requête
         next();
     } catch (error) {
         return res.status(401).json({ message: 'Non autorisé', error: error.message });
     }
 };
+
 
 // Middleware pour récupérer les informations de l'utilisateur authentifié
 export const getAuthenticatedUser = (req, res) => {
