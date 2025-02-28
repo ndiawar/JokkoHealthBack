@@ -15,6 +15,18 @@ const medicalRecordSchema = new mongoose.Schema({
     groupeSanguin: {
         type: String,
         required: true
+    },
+    chirurgie: {  // Ajout des informations sur la chirurgie
+        type: String,
+        required: false
+    },
+    hospitalisation: {  // Ajout des informations sur les hospitalisations
+        type: String,
+        required: false
+    },
+    antecedentsFamiliaux: {  // Ajout des antécédents familiaux
+        type: String,
+        required: false
     }
 }, { timestamps: true });
 

@@ -1,8 +1,8 @@
 import express from 'express';
 import AppointmentController from '../../controllers/appointment/appointementController.js';
-import { authenticate } from '../../middlewares/auth/authenticate.js';
 import roleCheck from '../../middlewares/auth/roleCheck.js';
 import { body } from 'express-validator';
+import { authenticate } from '../../middlewares/auth/authenticate.js';
 
 const router = express.Router();
 
@@ -79,7 +79,7 @@ const appointmentValidation = [
  *                   specialiste:
  *                     type: string
  */
-router.post('/', appointmentValidation, AppointmentController.create);
+router.post('/',authenticate, appointmentValidation, AppointmentController.create);
 
 /**
  * @swagger
@@ -94,7 +94,7 @@ router.post('/', appointmentValidation, AppointmentController.create);
  *       500:
  *         description: Erreur interne du serveur.
  */
-router.get('/', authenticate, roleCheck(['SuperAdmin', 'Patient', 'Medecin']), AppointmentController.list);
+router.get('/',authenticate,  AppointmentController.list);
 
 /**
  * @swagger
@@ -131,7 +131,7 @@ router.get('/', authenticate, roleCheck(['SuperAdmin', 'Patient', 'Medecin']), A
  *       404:
  *         description: Rendez-vous non trouvé.
  */
-router.get('/:id', authenticate, roleCheck(['Patient', 'Medecin']), AppointmentController.read);
+router.get('/:id',authenticate, AppointmentController.read);
 
 /**
  * @swagger
@@ -173,7 +173,7 @@ router.get('/:id', authenticate, roleCheck(['Patient', 'Medecin']), AppointmentC
  *       404:
  *         description: Rendez-vous non trouvé.
  */
-router.put('/:id', authenticate, roleCheck(['Patient', 'Medecin']), appointmentValidation, AppointmentController.update);
+router.put('/:id',authenticate, roleCheck(['Patient', 'Medecin']), appointmentValidation, AppointmentController.update);
 
 /**
  * @swagger
@@ -195,7 +195,7 @@ router.put('/:id', authenticate, roleCheck(['Patient', 'Medecin']), appointmentV
  *       404:
  *         description: Rendez-vous non trouvé.
  */
-router.delete('/:id', authenticate, roleCheck(['Patient', 'Medecin']), AppointmentController.delete);
+router.delete('/:id',authenticate, roleCheck(['Patient', 'Medecin']), AppointmentController.delete);
 
 /**
  * @swagger
@@ -234,7 +234,7 @@ const participationValidation = [
     body('patientId').notEmpty().isMongoId(),
 ];
 
-router.post('/:id/demander-participation', authenticate, roleCheck(['Patient', 'Medecin']), participationValidation, AppointmentController.demanderParticipation);
+router.post('/:id/demander-participation',authenticate,roleCheck(['Patient', 'Medecin']), participationValidation, AppointmentController.demanderParticipation);
 
 /**
  * @swagger
@@ -258,6 +258,6 @@ router.post('/:id/demander-participation', authenticate, roleCheck(['Patient', '
  *       404:
  *         description: Rendez-vous non trouvé.
  */
-router.put('/:id/statu-demande', authenticate, roleCheck(['Patient', 'Medecin']), AppointmentController.gestionDemande);
+router.put('/:id/statu-demande',authenticate, roleCheck(['Patient', 'Medecin']), AppointmentController.gestionDemande);
 
 export default router;
