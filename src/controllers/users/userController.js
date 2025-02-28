@@ -153,7 +153,7 @@ class UserController extends CrudController {
 
             const user = await User.findOne({ email });
             if (!user) {
-                return res.status(401).json({ message: 'Identifiants invalides' });
+                return res.status(401).json({ message: 'Identifiants invalides, veuillez vérifier votre email' });
             }
 
             if (user.blocked || user.archived) {
@@ -162,7 +162,7 @@ class UserController extends CrudController {
 
             const isMatch = await bcrypt.compare(motDePasse, user.motDePasse);
             if (!isMatch) {
-                return res.status(401).json({ message: 'Identifiants invalides' });
+                return res.status(401).json({ message: 'Identifiants invalides, veuillez vérifier votre mot de passe' });
             }
 
             // Génération du token JWT
@@ -193,7 +193,7 @@ class UserController extends CrudController {
 
         } catch (error) {
             console.error('Erreur lors de la connexion de l\'utilisateur:', error);
-            return res.status(500).json({ error: 'Erreur lors de la connexion' });
+            return res.status(500).json({ error: 'Erreur serveur, veuillez réessayer plus tard' });
         }
     }
 
@@ -314,30 +314,42 @@ class UserController extends CrudController {
         return this.updateUserState(req, res, [req.params.id], 'unarchive');
     }
     
-     // 📌 Déconnexion d'un utilisateur
-     async logout(req, res) {
+
+// 📌 Déconnexion d'un utilisateur
+async logout(req, res) {
+    try {
+        const token = req.cookies.jwt; // Récupérer le token JWT à partir des cookies
+        if (!token) {
+            return res.status(400).json({ message: "Token manquant" });
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (!decoded) {
+            return res.status(400).json({ message: "Token invalide" });
+        }
+
+        // Ajouter le token à la liste noire
+        const blacklistedToken = new BlacklistedToken({
+            token,
+            expiresAt: new Date(decoded.exp * 1000)
+        });
+
+        await blacklistedToken.save();
+        res.clearCookie('jwt'); // Supprimer le cookie JWT
+        return res.status(200).json({ message: "Déconnexion réussie" });
+    } catch (error) {
+        console.error("Erreur lors de la déconnexion:", error);
+        return res.status(500).json({ message: "Erreur serveur lors de la déconnexion", error: error.message });
+    }
+}
+
+    // 📌 Récupération des informations d'un utilisateur connecté
+    async getMe(req, res) {
         try {
-            const token = req.headers.authorization?.split(' ')[1];
-            if (!token) {
-                return res.status(400).json({ message: "Token manquant" });
-            }
-
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            if (!decoded) {
-                return res.status(400).json({ message: "Token invalide" });
-            }
-
-            // Ajouter le token à la liste noire
-            const blacklistedToken = new BlacklistedToken({
-                token,
-                expiresAt: new Date(decoded.exp * 1000)
-            });
-
-            await blacklistedToken.save();
-            return res.status(200).json({ message: "Déconnexion réussie" });
+            const user = await User.findById(req.user.id).select('-motDePasse');
+            res.status(200).json(user);
         } catch (error) {
-            console.error("Erreur lors de la déconnexion:", error);
-            return res.status(500).json({ message: "Erreur serveur lors de la déconnexion", error: error.message });
+            res.status(500).json({ message: 'Erreur serveur' });
         }
     }
 }

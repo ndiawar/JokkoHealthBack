@@ -3,7 +3,6 @@ import { promisify } from 'util';
 import User from '../../models/user/userModel.js';
 import BlacklistedToken from '../../models/auth/blacklistedToken.js';
 
-
 // Promisify pour transformer jwt.verify en fonction asynchrone
 const verifyToken = promisify(jwt.verify);
 

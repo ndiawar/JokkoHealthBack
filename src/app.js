@@ -13,11 +13,9 @@ import morganMiddleware from './utils/logger/morgan.js';
 import setupSwagger from './config/swagger.js';
 import jwt from 'jsonwebtoken';  // Importer jwt pour gérer l'authentification
 import { connectDB } from './config/database.js';  // Importer la fonction de connexion à la DB
-
+import corsConfig from './middlewares/security/cors.js'; // Importer votre configuration CORS
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
-
-
 
 // Chargement des variables d'environnement
 dotenv.config();
@@ -29,8 +27,8 @@ const port = process.env.PORT || 3001;
 // Connexion à la base de données MongoDB
 connectDB();
 
-// Middleware
-app.use(cors());
+// Middleware CORS pour le backend (express)
+app.use(corsConfig);  // Appliquer cette configuration à votre serveur
 app.use(helmet());
 app.use(morganMiddleware);
 app.use(cookieParser());
@@ -57,45 +55,47 @@ app.use((err, req, res, next) => {
 const server = createServer(app);
 
 // Initialisation de Socket.IO
-// Initialisation de Socket.IO
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:3001", // Permettre l'accès depuis le client React
-  },
-});
+// Configuration CORS spécifique à Socket.IO
+// const io = new Server(server, {
+//   cors: {
+//     origin: "http://localhost:3000", // Autoriser les connexions depuis le client React (localhost:3000)
+//     methods: ["GET", "POST"], // Méthodes autorisées
+//     allowedHeaders: ["Content-Type", "Authorization"], // En-têtes autorisés
+//     credentials: true, // Permettre l'envoi des cookies avec les requêtes
+//   },
+// });
 
 let activeUsers = [];
 
 // Gérer les connexions de Socket.IO
-io.on("connection", (socket) => {
-  // Ajouter un nouvel utilisateur lorsqu'il se connecte
-  socket.on("new-user-add", (newUserId) => {
-    if (!activeUsers.some((user) => user.userId === newUserId)) {
-      activeUsers.push({ userId: newUserId, socketId: socket.id });
-      console.log("New User Connected", activeUsers);
-    }
-    // Envoyer la liste des utilisateurs actifs à tous
-    io.emit("get-users", activeUsers);
-  });
+// io.on("connection", (socket) => {
+//   // Ajouter un nouvel utilisateur lorsqu'il se connecte
+//   socket.on("new-user-add", (newUserId) => {
+//     if (!activeUsers.some((user) => user.userId === newUserId)) {
+//       activeUsers.push({ userId: newUserId, socketId: socket.id });
+//       console.log("New User Connected", activeUsers);
+//     }
+//     // Envoyer la liste des utilisateurs actifs à tous
+//     io.emit("get-users", activeUsers);
+//   });
 
-  // Lors de la déconnexion de l'utilisateur
-  socket.on("disconnect", () => {
-    activeUsers = activeUsers.filter((user) => user.socketId !== socket.id);
-    console.log("User Disconnected", activeUsers);
-    // Mettre à jour la liste des utilisateurs actifs
-    io.emit("get-users", activeUsers);
-  });
+//   // Lors de la déconnexion de l'utilisateur
+//   socket.on("disconnect", () => {
+//     activeUsers = activeUsers.filter((user) => user.socketId !== socket.id);
+//     console.log("User Disconnected", activeUsers);
+//     // Mettre à jour la liste des utilisateurs actifs
+//     io.emit("get-users", activeUsers);
+//   });
 
-  // Envoi d'un message à un utilisateur spécifique
-  socket.on("send-message", (data) => {
-    const { receiverId, senderId, text, chatId } = data;
-    const user = activeUsers.find((user) => user.userId === receiverId);
-    if (user) {
-      io.to(user.socketId).emit("receive-message", { senderId, text, chatId });
-    }
-  });
-});
-
+//   // Envoi d'un message à un utilisateur spécifique
+//   socket.on("send-message", (data) => {
+//     const { receiverId, senderId, text, chatId } = data;
+//     const user = activeUsers.find((user) => user.userId === receiverId);
+//     if (user) {
+//       io.to(user.socketId).emit("receive-message", { senderId, text, chatId });
+//     }
+//   });
+// });
 
 // Démarrage de l'application
 server.listen(port, () => {

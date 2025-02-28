@@ -30,6 +30,21 @@ router.get('/', authenticate, UserController.list.bind(UserController));
 
 /**
  * @swagger
+ * /users/me:
+ *   get:
+ *     summary: Récupérer les informations de l'utilisateur connecté
+ *     description: Retourne les informations de l'utilisateur connecté.
+ *     tags: [Utilisateurs]
+ *     responses:
+ *       200:
+ *         description: Informations de l'utilisateur récupérées avec succès.
+ *       401:
+ *         description: Utilisateur non authentifié.
+ */
+router.get('/me', authenticate, UserController.getMe);
+
+/**
+ * @swagger
  * /users/{id}:
  *   get:
  *     summary: Récupérer un utilisateur par ID
