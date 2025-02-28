@@ -62,24 +62,60 @@ export const getMedicalRecordById = async (req, res) => {
     }
 };
 
-// Mettre à jour un dossier médical
 export const updateMedicalRecord = async (req, res) => {
     try {
         const { recordId } = req.params;
         const updates = req.body;
 
-        // Mettre à jour le dossier médical avec les nouvelles données
-        const updatedRecord = await MedicalRecord.findByIdAndUpdate(recordId, updates, { new: true });
+        console.log("Données de mise à jour reçues :", updates);
+        console.log("ID du dossier médical :", recordId);
 
-        if (!updatedRecord) {
+        // Vérifier si le dossier médical existe
+        const record = await MedicalRecord.findById(recordId);
+        if (!record) {
             return res.status(404).json({ error: 'Dossier médical non trouvé.' });
+        }
+
+        // Vérifier si le patient existe
+        const patient = await User.findById(record.patientId);
+        if (!patient) {
+            return res.status(404).json({ error: 'Patient non trouvé.' });
+        }
+
+        // Préparer les mises à jour pour le dossier médical
+        const medicalUpdates = {};
+        if (updates.age !== undefined) medicalUpdates.age = updates.age;
+        if (updates.poids !== undefined) medicalUpdates.poids = updates.poids;
+        if (updates.groupeSanguin !== undefined) medicalUpdates.groupeSanguin = updates.groupeSanguin;
+        if (updates.chirurgie !== undefined) medicalUpdates.chirurgie = updates.chirurgie;
+        if (updates.hospitalisation !== undefined) medicalUpdates.hospitalisation = updates.hospitalisation;
+        if (updates.antecedentsFamiliaux !== undefined) medicalUpdates.antecedentsFamiliaux = updates.antecedentsFamiliaux;
+
+        console.log("Mises à jour médicales :", medicalUpdates);
+
+        // Mettre à jour le dossier médical
+        const updatedRecord = await MedicalRecord.findByIdAndUpdate(recordId, medicalUpdates, { new: true });
+        console.log("Dossier médical mis à jour :", updatedRecord);
+
+        // Préparer les mises à jour pour le patient
+        const patientUpdates = {};
+        if (updates.nom !== undefined) patientUpdates.nom = updates.nom;
+        if (updates.prenom !== undefined) patientUpdates.prenom = updates.prenom;
+        if (updates.email !== undefined) patientUpdates.email = updates.email;
+
+        // Mettre à jour le patient
+        if (Object.keys(patientUpdates).length > 0) {
+            const updatedPatient = await User.findByIdAndUpdate(record.patientId, patientUpdates, { new: true });
+            console.log("Patient mis à jour :", updatedPatient);
         }
 
         res.status(200).json({ message: 'Dossier médical mis à jour avec succès.', record: updatedRecord });
     } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la mise à jour du dossier médical.", details: error.message });
+        console.error("Erreur lors de la mise à jour :", error);
+        res.status(500).json({ error: "Erreur lors de la mise à jour du dossier médical.", details: error });
     }
 };
+
 
 // Supprimer un dossier médical
 export const deleteMedicalRecord = async (req, res) => {

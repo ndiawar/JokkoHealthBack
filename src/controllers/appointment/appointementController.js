@@ -34,11 +34,17 @@ class AppointmentController {
     }
 }
 
-// Lire tous les rendez-vous
-    async list(req, res) {
-        const appointments = await Appointment.find();
-        return res.status(200).json(appointments);
+
+     // Lire tous les rendez-vous avec les informations du médecin
+     async list(req, res) {
+        try {
+            const appointments = await Appointment.find().populate('doctorId', 'nom email');
+            return res.status(200).json(appointments);
+        } catch (error) {
+            return res.status(500).json({ error: 'Erreur lors de la récupération des rendez-vous.' });
+        }
     }
+
 
     // Lire un rendez-vous par ID
     async read(req, res) {
