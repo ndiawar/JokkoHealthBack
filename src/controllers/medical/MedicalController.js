@@ -1,88 +1,113 @@
-// controllers/medicalRecordController.js
+import MedicalRecord from '../../models/medical/medicalModel.js';
+import User from '../../models/user/userModel.js';
+import { validationResult } from 'express-validator';
 
-import MedicalRecord from '../../models/medical/medicalModel.js';  // Importer le modèle correctement
-import User from '../../models/user/userModel.js';  // Importer le modèle correctement
-
-// Créer un dossier médical
-export const createMedicalRecord = async (req, res) => {
-    try {
-        const { patientId, poids, age, groupeSanguin, chirurgie, hospitalisation, antecedentsFamiliaux } = req.body;
-
-        // Vérifier si l'utilisateur avec l'ID donné existe et est bien un patient
-        const patient = await User.findOne({ _id: patientId, role: 'Patient' });
-        if (!patient) {
-            return res.status(404).json({ error: 'Patient non trouvé ou non valide.' });
-        }
-
-        // Créer un nouveau dossier médical lié à ce patient
-        const newRecord = new MedicalRecord({
-            patientId,
-            poids,
-            age,
-            groupeSanguin,
-            chirurgie,
-            hospitalisation,
-            antecedentsFamiliaux
-        });
-
-        await newRecord.save();
-
-        res.status(201).json({ message: 'Dossier médical créé avec succès.', record: newRecord });
-
-    } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la création du dossier médical.", details: error.message });
+// Fonction utilitaire pour vérifier les rôles
+const checkRole = (role, requiredRole, res) => {
+    if (role !== requiredRole) {
+        handleErrorResponse(res, 403, `Accès refusé : Seul un ${requiredRole} peut effectuer cette action.`);
+        return false;
     }
+    return true;
+};
+
+// Fonction utilitaire pour vérifier l'existence d'un dossier médical
+const findMedicalRecord = async (recordId, res) => {
+    const record = await MedicalRecord.findById(recordId);
+    if (!record) {
+        handleErrorResponse(res, 404, 'Dossier médical non trouvé.');
+        return null;
+    }
+    return record;
 };
 
 // Récupérer tous les dossiers médicaux
+// Récupérer tous les dossiers médicaux
 export const getAllMedicalRecords = async (req, res) => {
     try {
-        const records = await MedicalRecord.find().populate('patientId', 'nom prenom telephone');
-        res.status(200).json(records);
+        const { role, id: userId } = req.user;
+
+        let records;
+        if (role === 'Medecin') {
+            // Si l'utilisateur est un médecin, on filtre par `medecinId` et on récupère les infos du patient
+            records = await MedicalRecord.find({ medecinId: userId })
+                .populate('patientId', 'nom prenom email telephone')  // Récupérer nom, prénom, téléphone du patient
+                .populate('medecinId', 'nom prenom email telephone'); // Récupérer nom, prénom, email, téléphone du médecin
+        } else if (role === 'SuperAdmin') {
+            // Si l'utilisateur est un SuperAdmin, on récupère tous les dossiers médicaux
+            records = await MedicalRecord.find()
+                .populate('patientId', 'nom prenom telephone')  // Récupérer nom, prénom, téléphone du patient
+                .populate('medecinId', 'nom prenom email telephone'); // Récupérer nom, prénom, email, téléphone du médecin
+        } else if (role === 'Patient') {
+            // Si l'utilisateur est un patient, on récupère un seul dossier associé à l'utilisateur
+            const record = await MedicalRecord.findOne({ patientId: userId })
+                .populate('patientId', 'nom prenom telephone')  // Récupérer nom, prénom, téléphone du patient
+                .populate('medecinId', 'nom prenom email telephone'); // Récupérer nom, prénom, email, téléphone du médecin
+            
+            if (!record) {
+                return handleErrorResponse(res, 404, 'Aucun dossier médical trouvé pour ce patient.');
+            }
+            return res.status(200).json({ success: true, record });
+        }
+
+        if (!records || records.length === 0) {
+            return handleErrorResponse(res, 404, 'Aucun dossier médical trouvé.');
+        }
+
+        return res.status(200).json({ success: true, records });
     } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la récupération des dossiers médicaux.", details: error.message });
+        console.error("Erreur lors de la récupération des dossiers médicaux :", error);
+        handleErrorResponse(res, 500, "Erreur lors de la récupération des dossiers médicaux.", error.message);
     }
 };
 
-// Récupérer un dossier médical par ID (avec détails patient)
+
+// Récupérer un dossier médical par ID
 export const getMedicalRecordById = async (req, res) => {
     try {
         const { recordId } = req.params;
+        const { role, id: userId } = req.user;
 
-        // Récupérer le dossier médical et peupler les informations du patient
         const record = await MedicalRecord.findById(recordId)
-            .populate('patientId', 'nom prenom email telephone');
+            .populate('patientId', 'nom prenom email telephone')
+            .populate('medecinId', 'nom prenom email telephone');
 
         if (!record) {
-            return res.status(404).json({ error: 'Dossier médical non trouvé.' });
+            return handleErrorResponse(res, 404, 'Dossier médical non trouvé.');
         }
-        res.status(200).json(record);
+
+        if ((role === 'Medecin' && record.medecinId._id.toString() !== userId) ||
+            (role === 'Patient' && record.patientId._id.toString() !== userId)) {
+            return handleErrorResponse(res, 403, 'Accès refusé : Ce dossier ne vous appartient pas.');
+        }
+
+        return res.status(200).json({ success: true, record });
     } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la récupération du dossier médical.", details: error.message });
+        console.error("Erreur lors de la récupération du dossier médical :", error);
+        handleErrorResponse(res, 500, "Erreur lors de la récupération du dossier médical.", error.message);
     }
 };
 
+// Modifier un dossier médical par ID
 export const updateMedicalRecord = async (req, res) => {
     try {
         const { recordId } = req.params;
         const updates = req.body;
+        const { role, id: userId } = req.user;
 
-        console.log("Données de mise à jour reçues :", updates);
-        console.log("ID du dossier médical :", recordId);
-
-        // Vérifier si le dossier médical existe
-        const record = await MedicalRecord.findById(recordId);
-        if (!record) {
-            return res.status(404).json({ error: 'Dossier médical non trouvé.' });
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return handleErrorResponse(res, 400, 'Données invalides', errors.array());
         }
 
-        // Vérifier si le patient existe
-        const patient = await User.findById(record.patientId);
-        if (!patient) {
-            return res.status(404).json({ error: 'Patient non trouvé.' });
+        const record = await findMedicalRecord(recordId, res);
+        if (!record) return;
+
+        if ((role === 'Medecin' && record.medecinId.toString() !== userId) ||
+            (role === 'Patient' && record.patientId.toString() !== userId)) {
+            return handleErrorResponse(res, 403, 'Accès refusé : Ce dossier ne vous appartient pas.');
         }
 
-        // Préparer les mises à jour pour le dossier médical
         const medicalUpdates = {};
         if (updates.age !== undefined) medicalUpdates.age = updates.age;
         if (updates.poids !== undefined) medicalUpdates.poids = updates.poids;
@@ -91,46 +116,34 @@ export const updateMedicalRecord = async (req, res) => {
         if (updates.hospitalisation !== undefined) medicalUpdates.hospitalisation = updates.hospitalisation;
         if (updates.antecedentsFamiliaux !== undefined) medicalUpdates.antecedentsFamiliaux = updates.antecedentsFamiliaux;
 
-        console.log("Mises à jour médicales :", medicalUpdates);
-
-        // Mettre à jour le dossier médical
         const updatedRecord = await MedicalRecord.findByIdAndUpdate(recordId, medicalUpdates, { new: true });
-        console.log("Dossier médical mis à jour :", updatedRecord);
 
-        // Préparer les mises à jour pour le patient
-        const patientUpdates = {};
-        if (updates.nom !== undefined) patientUpdates.nom = updates.nom;
-        if (updates.prenom !== undefined) patientUpdates.prenom = updates.prenom;
-        if (updates.email !== undefined) patientUpdates.email = updates.email;
-
-        // Mettre à jour le patient
-        if (Object.keys(patientUpdates).length > 0) {
-            const updatedPatient = await User.findByIdAndUpdate(record.patientId, patientUpdates, { new: true });
-            console.log("Patient mis à jour :", updatedPatient);
-        }
-
-        res.status(200).json({ message: 'Dossier médical mis à jour avec succès.', record: updatedRecord });
+        return res.status(200).json({ success: true, message: 'Dossier médical mis à jour avec succès.', record: updatedRecord });
     } catch (error) {
-        console.error("Erreur lors de la mise à jour :", error);
-        res.status(500).json({ error: "Erreur lors de la mise à jour du dossier médical.", details: error });
+        console.error("Erreur lors de la mise à jour du dossier médical :", error);
+        handleErrorResponse(res, 500, "Erreur lors de la mise à jour du dossier médical.", error.message);
     }
 };
-
 
 // Supprimer un dossier médical
 export const deleteMedicalRecord = async (req, res) => {
     try {
         const { recordId } = req.params;
-        
-        // Supprimer le dossier médical par son ID
-        const deletedRecord = await MedicalRecord.findByIdAndDelete(recordId);
-        
-        if (!deletedRecord) {
-            return res.status(404).json({ error: 'Dossier médical non trouvé.' });
+        const { role, id: userId } = req.user;
+
+        const record = await findMedicalRecord(recordId, res);
+        if (!record) return;
+
+        if (!checkRole(role, 'Medecin', res)) return;
+        if (record.medecinId.toString() !== userId) {
+            return handleErrorResponse(res, 403, 'Accès refusé : Vous ne pouvez pas supprimer ce dossier.');
         }
 
-        res.status(200).json({ message: 'Dossier médical supprimé avec succès.' });
+        await MedicalRecord.findByIdAndDelete(recordId);
+
+        return res.status(200).json({ success: true, message: 'Dossier médical supprimé avec succès.' });
     } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la suppression du dossier médical.", details: error.message });
+        console.error("Erreur lors de la suppression du dossier médical :", error);
+        handleErrorResponse(res, 500, "Erreur lors de la suppression du dossier médical.", error.message);
     }
 };

@@ -11,6 +11,8 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import BlacklistedToken from '../../models/auth/blacklistedToken.js'; // Import du modèle
 import User from '../../models/user/userModel.js';
+import Patient from '../../models/user/patientModel.js'; // Import du modèle Patient
+import MedicalRecord from '../../models/medical/medicalModel.js'; // Import du modèle MedicalRecord
 
 // Utilisation de fileURLToPath pour obtenir le répertoire actuel
 const __filename = fileURLToPath(import.meta.url);
@@ -27,17 +29,20 @@ class UserController extends CrudController {
         this.unarchiveUser = this.unarchiveUser.bind(this);
     }
 
-    // 📌 Inscription d'un utilisateur    
+    // 📌 Inscription d'un utilisateur
     async register(req, res) {
-        const { nom, prenom, email, role, dateNaissance, sexe, telephone } = req.body;
+        const { nom, prenom, email, role, dateNaissance, sexe, telephone, adresse } = req.body;
 
         // Fonction pour générer un username unique
         const generateUsername = async (nom, prenom) => {
-            let username = `${prenom.charAt(0).toLowerCase()}${nom.toLowerCase()}`; // "johndoe" pour "John Doe"
+            if (!prenom || !nom) {
+                throw new Error("Prénom ou nom manquant pour générer un username");
+            }
+
+            let username = `${prenom.charAt(0).toLowerCase()}${nom.toLowerCase()}`;
             let suffix = 1;
             let existingUser = await User.findOne({ username });
 
-            // Si le username existe déjà, on ajoute un suffixe
             while (existingUser) {
                 username = `${prenom.charAt(0).toLowerCase()}${nom.toLowerCase()}${suffix}`;
                 existingUser = await User.findOne({ username });
@@ -47,76 +52,74 @@ class UserController extends CrudController {
             return username;
         };
 
-        // Vérification des champs obligatoires
         if (!nom || !prenom || !email || !role || !telephone) {
             return res.status(400).json({ message: "Tous les champs obligatoires doivent être renseignés" });
         }
 
-        // Vérification du rôle
         if (!['Patient', 'Medecin', 'SuperAdmin'].includes(role)) {
             return res.status(400).json({ message: "Rôle invalide" });
         }
 
         try {
-            // Vérifier l'unicité de l'email
+            // Vérifier que le créateur est un médecin si le rôle est "Patient"
+            if (role === 'Patient') {
+                const userId = req.user.id;  // Utiliser l'ID de l'utilisateur authentifié
+                const authenticatedUser = await User.findById(userId);
+
+                if (!authenticatedUser || authenticatedUser.role !== 'Medecin') {
+                    return res.status(403).json({ message: "Seul un médecin peut créer un patient" });
+                }
+            }
+
+            // Vérification de l'unicité de l'email et du téléphone
             const userWithSameEmail = await User.findOne({ email });
             if (userWithSameEmail) {
                 return res.status(400).json({ message: "L'email est déjà utilisé" });
             }
 
-            // Vérifier l'unicité du numéro de téléphone
             const userWithSameTelephone = await User.findOne({ telephone });
             if (userWithSameTelephone) {
                 return res.status(400).json({ message: "Le numéro de téléphone est déjà utilisé" });
             }
 
-            // Générer le username
+            // Générer le username unique
             const username = await generateUsername(nom, prenom);
 
             // Hacher le mot de passe par défaut
             const hashedPassword = await bcrypt.hash('jokkohealth25', 10);
 
-            // Créer un nouvel utilisateur avec le mot de passe haché
+            // Créer un nouvel utilisateur
             const newUser = new User({
-                nom,
-                prenom,
-                email,
-                motDePasse: hashedPassword, // Mot de passe haché
-                role,
-                dateNaissance,
-                sexe,
-                telephone,
-                username  // Ajouter le username généré
+                nom, prenom, email, motDePasse: hashedPassword, role, dateNaissance, sexe, telephone, adresse, username
             });
 
-            // Sauvegarder l'utilisateur
             await newUser.save();
 
-            // Charger le fichier MJML depuis le répertoire local
-            const mjmlFilePath = path.join(__dirname, '../../../src/templates/emails/welcomes/welcome.mjml');
-            const mjmlContent = fs.readFileSync(mjmlFilePath, 'utf8'); // Lire le fichier MJML
+            // Si le rôle est "Patient", créer le dossier médical et lier le médecin
+            if (role === 'Patient') {
+                // Vérifier si un dossier médical existe déjà pour ce patient
+                const existingMedicalRecord = await MedicalRecord.findOne({ patientId: newUser._id });
+                if (existingMedicalRecord) {
+                    return res.status(400).json({ message: "Ce patient a déjà un dossier médical existant" });
+                }
 
-            // Compiler le contenu MJML en HTML
-            const { html } = mjml(mjmlContent);
+                // Créer un nouveau dossier médical
+                const medicalRecord = new MedicalRecord({
+                    patientId: newUser._id, // Lier le dossier médical au patient
+                    medecinId: req.user.id,  // Lier le dossier médical au médecin authentifié
+                    statut: 'Stable'         // Statut par défaut
+                });
+                await medicalRecord.save();
 
-            // Remplacer les variables dynamiques dans le contenu HTML
-            const htmlContent = html
-                .replace('{{prenom}}', prenom)
-                .replace('{{nom}}', nom)
-                .replace('{{username}}', username)
-                .replace('{{email}}', email)
-                .replace('{{loginLink}}', 'https://jokkohealth.com/login'); // Remplacer par l'URL de votre page de connexion
+                // Lier le dossier médical au patient
+                newUser.medicalRecord = medicalRecord._id;
+                await newUser.save();
+            }
 
-            // Envoi de l'email de bienvenue avec les informations de connexion
+            // Envoi de l'email de bienvenue
             const subject = 'Bienvenue sur JokkoHealth!';
-
-            // Envoi de l'email via votre service Email
-            await emailService.sendEmail({
-                to: email,
-                subject,
-                text: '',
-                html: htmlContent
-            });
+            const htmlContent = "<html><body><p>Bienvenue sur JokkoHealth!</p></body></html>";  // Exemple simplifié
+            await emailService.sendEmail({ to: email, subject, html: htmlContent });
 
             return res.status(201).json({
                 message: "Utilisateur créé avec succès. Un email de bienvenue a été envoyé.",
@@ -126,8 +129,7 @@ class UserController extends CrudController {
                     prenom: newUser.prenom,
                     email: newUser.email,
                     role: newUser.role,
-                    telephone: newUser.telephone,
-                    username: newUser.username // Inclure le username dans la réponse
+                    username: newUser.username
                 }
             });
         } catch (error) {
@@ -210,7 +212,7 @@ class UserController extends CrudController {
             // Vérifier si l'utilisateur existe
             const existingUser = await User.findById(userId);
             if (!existingUser) {
-                return res.status(404).json({ message: 'Utilisateur non trouvé' });
+                res.status(404).json({ message: 'Utilisateur non trouvé' });
             }
 
             // Vérifier si l'utilisateur a le droit de modifier ce profil

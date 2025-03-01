@@ -1,6 +1,5 @@
 import express from 'express';
 import {
-    createMedicalRecord,
     getAllMedicalRecords,
     getMedicalRecordById,
     updateMedicalRecord,
@@ -19,35 +18,21 @@ const router = express.Router();
  *   description: Opérations liées aux dossiers médicaux
  */
 
+
 /**
  * @swagger
  * /api/medical:
- *   post:
+ *   get:
  *     tags: [Dossiers médicaux]
- *     summary: Créer un nouveau dossier médical
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               patientId:
- *                 type: string
- *               age:
- *                 type: number
- *               poids:
- *                 type: number
- *               groupeSanguin:
- *                 type: string
+ *     summary: Récupérer tous les dossiers médicaux
  *     responses:
- *       201:
- *         description: Dossier médical créé avec succès
+ *       200:
+ *         description: Liste des dossiers médicaux récupérés avec succès
  *       500:
- *         description: Erreur serveur
+ *         description: Erreur interne du serveur
+ * description: Récupérer tous les dossiers médicaux
  */
-router.post('/',authenticate,  logMiddleware, createMedicalRecord);
-
+router.get('/', authenticate, logMiddleware, getAllMedicalRecords);
 /**
  * @swagger
  * /api/medical/{recordId}:

@@ -1,20 +1,27 @@
-// models/medicalRecordModel.js
 import mongoose from 'mongoose';
 
 const medicalRecordSchema = new mongoose.Schema({
-
-    patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }, // Référence à l'ID du patient
+    patientId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User', 
+        default: null // Référence à l'ID du patient, lié à l'utilisateur
+    },
+    medecinId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // Référence à l'utilisateur (médecin)
+        required: true
+    },
     age: {
         type: Number,
-        required: true
+        required: false
     },
     poids: {
         type: Number,
-        required: true
+        required: false
     },
     groupeSanguin: {
         type: String,
-        required: true
+        required: false
     },
     chirurgie: {  // Ajout des informations sur la chirurgie
         type: String,
@@ -27,8 +34,13 @@ const medicalRecordSchema = new mongoose.Schema({
     antecedentsFamiliaux: {  // Ajout des antécédents familiaux
         type: String,
         required: false
+    },
+    status: {  // Ajout du champ status
+        type: String,
+        enum: ['stable', 'en traitement', 'hospitalisé', 'sortie', 'urgent'],  // Valeurs possibles pour le status
+        default: 'stable'  // Valeur par défaut
     }
-}, { timestamps: true });
+}, { timestamps: false });
 
 const MedicalRecord = mongoose.model('MedicalRecord', medicalRecordSchema);
 

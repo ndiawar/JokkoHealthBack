@@ -360,7 +360,7 @@ router.delete('/:id', authenticate, roleCheck(['Patient', 'Medecin', 'SuperAdmin
  *       400:
  *         description: Données invalides.
  */
-router.post('/register', userValidator.register, UserController.register);
+router.post('/register', authenticate, userValidator.register, UserController.register);
 
 /**
  * @swagger
