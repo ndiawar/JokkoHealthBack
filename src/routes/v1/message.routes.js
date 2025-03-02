@@ -41,7 +41,7 @@ const router = express.Router();
  *       500:
  *         description: Erreur lors de l'ajout du message
  */
-router.post('/',  addMessage);
+router.post('/',authenticate, roleCheck(['Patient', 'Medecin']),  addMessage);
 
 /**
  * @swagger
@@ -66,6 +66,6 @@ router.post('/',  addMessage);
  *       500:
  *         description: Erreur lors de la récupération des messages
  */
-router.get('/:chatId',  getMessages);
+router.get('/:chatId',authenticate, roleCheck(['Patient', 'Medecin']),  getMessages);
 
 export default router;

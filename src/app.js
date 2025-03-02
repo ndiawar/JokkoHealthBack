@@ -74,28 +74,28 @@ io.on("connection", (socket) => {
     if (!activeUsers.some((user) => user.userId === newUserId)) {
      activeUsers.push({ userId: newUserId, socketId: socket.id });
       console.log("New User Connected", activeUsers);
-//     }
-//     // Envoyer la liste des utilisateurs actifs à tous
-//     io.emit("get-users", activeUsers);
-//   });
+   }
+    // Envoyer la liste des utilisateurs actifs à tous
+    io.emit("get-users", activeUsers);
+  });
 
 //   // Lors de la déconnexion de l'utilisateur
-//   socket.on("disconnect", () => {
-//     activeUsers = activeUsers.filter((user) => user.socketId !== socket.id);
-//     console.log("User Disconnected", activeUsers);
-//     // Mettre à jour la liste des utilisateurs actifs
-//     io.emit("get-users", activeUsers);
-//   });
+ socket.on("disconnect", () => {
+    activeUsers = activeUsers.filter((user) => user.socketId !== socket.id);
+    console.log("User Disconnected", activeUsers);
+    // Mettre à jour la liste des utilisateurs actifs
+   io.emit("get-users", activeUsers);
+ });
 
 //   // Envoi d'un message à un utilisateur spécifique
-//   socket.on("send-message", (data) => {
-//     const { receiverId, senderId, text, chatId } = data;
-//     const user = activeUsers.find((user) => user.userId === receiverId);
-//     if (user) {
-//       io.to(user.socketId).emit("receive-message", { senderId, text, chatId });
-//     }
-//   });
-// });
+  socket.on("send-message", (data) => {
+   const { receiverId, senderId, text, chatId } = data;
+   const user = activeUsers.find((user) => user.userId === receiverId);
+   if (user) {
+     io.to(user.socketId).emit("receive-message", { senderId, text, chatId });
+   }
+ });
+ });
 
 // Démarrage de l'application
 server.listen(port, () => {
