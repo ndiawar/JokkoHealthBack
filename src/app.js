@@ -56,24 +56,24 @@ const server = createServer(app);
 
 // Initialisation de Socket.IO
 // Configuration CORS spécifique à Socket.IO
-// const io = new Server(server, {
-//   cors: {
-//     origin: "http://localhost:3000", // Autoriser les connexions depuis le client React (localhost:3000)
-//     methods: ["GET", "POST"], // Méthodes autorisées
-//     allowedHeaders: ["Content-Type", "Authorization"], // En-têtes autorisés
-//     credentials: true, // Permettre l'envoi des cookies avec les requêtes
-//   },
-// });
+const io = new Server(server, {
+  cors: {
+   origin: "http://localhost:3000", // Autoriser les connexions depuis le client React (localhost:3000)
+    methods: ["GET", "POST"], // Méthodes autorisées
+    allowedHeaders: ["Content-Type", "Authorization"], // En-têtes autorisés
+     credentials: true, // Permettre l'envoi des cookies avec les requêtes
+   },
+ });
 
 let activeUsers = [];
 
 // Gérer les connexions de Socket.IO
-// io.on("connection", (socket) => {
-//   // Ajouter un nouvel utilisateur lorsqu'il se connecte
-//   socket.on("new-user-add", (newUserId) => {
-//     if (!activeUsers.some((user) => user.userId === newUserId)) {
-//       activeUsers.push({ userId: newUserId, socketId: socket.id });
-//       console.log("New User Connected", activeUsers);
+io.on("connection", (socket) => {
+ // Ajouter un nouvel utilisateur lorsqu'il se connecte
+ socket.on("new-user-add", (newUserId) => {
+    if (!activeUsers.some((user) => user.userId === newUserId)) {
+     activeUsers.push({ userId: newUserId, socketId: socket.id });
+      console.log("New User Connected", activeUsers);
 //     }
 //     // Envoyer la liste des utilisateurs actifs à tous
 //     io.emit("get-users", activeUsers);

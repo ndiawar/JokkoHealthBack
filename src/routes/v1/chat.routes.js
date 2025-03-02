@@ -38,7 +38,7 @@ const router = express.Router();
  *       500:
  *         description: Erreur lors de la création du chat
  */
-router.post('/', authenticate, roleCheck(['Patient', 'Medecin']), createChat);
+router.post('/',  createChat);
 
 /**
  * @swagger
@@ -63,7 +63,7 @@ router.post('/', authenticate, roleCheck(['Patient', 'Medecin']), createChat);
  *       500:
  *         description: Erreur lors de la récupération des chats
  */
-router.get('/:userId', authenticate, roleCheck(['Patient', 'Medecin']), userChats);
+router.get('/:userId',  userChats);
 
 /**
  * @swagger
@@ -95,7 +95,7 @@ router.get('/:userId', authenticate, roleCheck(['Patient', 'Medecin']), userChat
  *       500:
  *         description: Erreur lors de la recherche du chat
  */
-router.get('/find/:firstId/:secondId', authenticate, roleCheck(['Patient', 'Medecin']), findChat);
+router.get('/find/:firstId/:secondId', findChat);
 
 /**
  * @swagger
@@ -110,6 +110,6 @@ router.get('/find/:firstId/:secondId', authenticate, roleCheck(['Patient', 'Mede
  *       500:
  *         description: Erreur lors de la récupération des chats
  */
-router.get('/', authenticate, roleCheck(['Patient', 'Medecin']), listChats);
+router.get('/',listChats);
 
 export default router;
