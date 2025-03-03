@@ -16,8 +16,6 @@ package-lock.json
 .env.example
 
 # Logs
-logs/
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -57,14 +55,8 @@ public/uploads/
 public/assets/
 public/build/
 
-# Documentation générée
-docs/swagger.json
-docs/postman/
 
-# Logs d'application
-logs/error/
-logs/access/
-logs/debug/
+
 
 # Tests
 jest.config.js

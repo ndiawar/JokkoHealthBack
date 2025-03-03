@@ -1,6 +1,14 @@
 import MedicalRecord from '../../models/medical/medicalModel.js';
-import User from '../../models/user/userModel.js';
 import { validationResult } from 'express-validator';
+
+// Fonction utilitaire pour gérer les erreurs de manière centralisée
+const handleErrorResponse = (res, statusCode, message, details) => {
+    return res.status(statusCode).json({
+        success: false,
+        message: message,
+        error: details || null
+    });
+};
 
 // Fonction utilitaire pour vérifier les rôles
 const checkRole = (role, requiredRole, res) => {
@@ -22,7 +30,6 @@ const findMedicalRecord = async (recordId, res) => {
 };
 
 // Récupérer tous les dossiers médicaux
-// Récupérer tous les dossiers médicaux
 export const getAllMedicalRecords = async (req, res) => {
     try {
         const { role, id: userId } = req.user;
@@ -36,12 +43,12 @@ export const getAllMedicalRecords = async (req, res) => {
         } else if (role === 'SuperAdmin') {
             // Si l'utilisateur est un SuperAdmin, on récupère tous les dossiers médicaux
             records = await MedicalRecord.find()
-                .populate('patientId', 'nom prenom telephone')  // Récupérer nom, prénom, téléphone du patient
+                .populate('patientId', 'nom prenom email telephone')  // Récupérer nom, prénom, téléphone du patient
                 .populate('medecinId', 'nom prenom email telephone'); // Récupérer nom, prénom, email, téléphone du médecin
         } else if (role === 'Patient') {
             // Si l'utilisateur est un patient, on récupère un seul dossier associé à l'utilisateur
             const record = await MedicalRecord.findOne({ patientId: userId })
-                .populate('patientId', 'nom prenom telephone')  // Récupérer nom, prénom, téléphone du patient
+                .populate('patientId', 'nom prenom email telephone')  // Récupérer nom, prénom, téléphone du patient
                 .populate('medecinId', 'nom prenom email telephone'); // Récupérer nom, prénom, email, téléphone du médecin
             
             if (!record) {
@@ -60,7 +67,6 @@ export const getAllMedicalRecords = async (req, res) => {
         handleErrorResponse(res, 500, "Erreur lors de la récupération des dossiers médicaux.", error.message);
     }
 };
-
 
 // Récupérer un dossier médical par ID
 export const getMedicalRecordById = async (req, res) => {
@@ -125,7 +131,7 @@ export const updateMedicalRecord = async (req, res) => {
     }
 };
 
-// Supprimer un dossier médical
+// Supprimer un dossier médical par ID
 export const deleteMedicalRecord = async (req, res) => {
     try {
         const { recordId } = req.params;
