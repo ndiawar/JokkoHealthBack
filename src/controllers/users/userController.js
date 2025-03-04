@@ -116,10 +116,36 @@ class UserController extends CrudController {
                 await newUser.save();
             }
 
-            // Envoi de l'email de bienvenue
+            // Charger le fichier MJML depuis le répertoire local
+            const mjmlFilePath = path.join(__dirname, '../../../src/templates/emails/welcomes/welcome.mjml');
+            const mjmlContent = fs.readFileSync(mjmlFilePath, 'utf8'); // Lire le fichier MJML
+
+            // Compiler le contenu MJML en HTML
+            const { html } = mjml(mjmlContent);
+
+            // Remplacer les variables dynamiques dans le contenu HTML
+            const htmlContent = html
+                .replace('{{prenom}}', prenom)
+                .replace('{{nom}}', nom)
+                .replace('{{username}}', username)
+                .replace('{{email}}', email)
+                .replace('{{loginLink}}', 'http://localhost:3000/login'); // Remplacer par l'URL de votre page de connexion
+
+            // Envoi de l'email de bienvenue avec les informations de connexion
             const subject = 'Bienvenue sur JokkoHealth!';
-            const htmlContent = "<html><body><p>Bienvenue sur JokkoHealth!</p></body></html>";  // Exemple simplifié
-            await emailService.sendEmail({ to: email, subject, html: htmlContent });
+
+            // Envoi de l'email via votre service Email
+            await emailService.sendEmail({
+                to: email,
+                subject,
+                text: '',
+                html: htmlContent
+            });
+
+            // // Envoi de l'email de bienvenue
+            // const subject = 'Bienvenue sur JokkoHealth!';
+            // const htmlContent = "<html><body><p>Bienvenue sur JokkoHealth!</p></body></html>";  // Exemple simplifié
+            // await emailService.sendEmail({ to: email, subject, html: htmlContent });
 
             return res.status(201).json({
                 message: "Utilisateur créé avec succès. Un email de bienvenue a été envoyé.",
