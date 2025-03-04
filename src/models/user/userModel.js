@@ -42,6 +42,8 @@ const userSchema = new mongoose.Schema({
     archived: { type: Boolean, default: false },
     resetPasswordAttempts: { type: Number, default: 0 },
     lastResetPasswordAttempt: { type: Date, default: Date.now },
+    resetPasswordToken: { type: String }, // Champ pour stocker le token de réinitialisation
+    resetPasswordExpires: { type: Date }, // Champ pour stocker la date d'expiration du token
     // Ajouter une référence vers le modèle MedicalRecord
     medicalRecord: { type: mongoose.Schema.Types.ObjectId, ref: 'MedicalRecord' }, 
 }, { timestamps: true });

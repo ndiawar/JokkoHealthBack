@@ -1,153 +1,175 @@
-import User from '../../models/user/userModel.js';
-import { validationResult } from 'express-validator';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-import emailService from '../../services/email/emailService.js';
+import User from '../../models/user/userModel.js'; // Importer le modèle utilisateur
+import { validationResult } from 'express-validator'; // Importer les résultats de validation
+import bcrypt from 'bcryptjs'; // Importer bcrypt pour le hachage des mots de passe
+import jwt from 'jsonwebtoken'; // Importer jsonwebtoken pour la gestion des tokens
+import crypto from 'crypto'; // Importer crypto pour la génération de tokens sécurisés
+import emailService from '../../services/email/emailService.js'; // Importer le service d'email
 
 class PasswordController {
-
     // 📌 Demande de réinitialisation de mot de passe (mot de passe oublié)
     async forgotPassword(req, res) {
-        const { email } = req.body;
-    
+        const { email } = req.body; // Récupérer l'email du corps de la requête
+
         if (!email) {
-            return res.status(400).json({ message: "L'email est requis" });
+            return res.status(400).json({ message: "L'email est requis" }); // Vérifier si l'email est fourni
         }
-    
+
         try {
-            const user = await User.findOne({ email });
+            const user = await User.findOne({ email }); // Trouver l'utilisateur par email
             if (!user) {
-                return res.status(404).json({ message: "Aucun utilisateur trouvé avec cet email" });
+                return res.status(404).json({ message: "Aucun utilisateur trouvé avec cet email" }); // Vérifier si l'utilisateur existe
             }
-    
-            // Vérifier les tentatives récentes
-            const timeDifference = Date.now() - user.lastResetPasswordAttempt;
+
+            const timeDifference = Date.now() - user.lastResetPasswordAttempt; // Calculer la différence de temps depuis la dernière tentative
             const timeLimit = 3600000; // 1 heure en millisecondes
-    
-            if (user.resetPasswordAttempts >= 2 && timeDifference < timeLimit) {
-                return res.status(429).json({ message: "Trop de tentatives. Veuillez réessayer dans une heure." });
+            const maxAttempts = 7; // Limite de tentatives
+
+            if (user.resetPasswordAttempts >= maxAttempts && timeDifference < timeLimit) {
+                return res.status(429).json({ message: `Trop de tentatives. Veuillez réessayer dans ${Math.floor(timeLimit / 60000)} minutes.` }); // Vérifier les tentatives récentes
             }
-    
-            // Mettre à jour les tentatives de réinitialisation de mot de passe
+
             if (timeDifference >= timeLimit) {
-                user.resetPasswordAttempts = 0; // Réinitialiser le compteur si une heure s'est écoulée
+                user.resetPasswordAttempts = 0; // Réinitialiser les tentatives après 1 heure
             }
-    
-            user.resetPasswordAttempts += 1;
-            user.lastResetPasswordAttempt = Date.now();
-            await user.save();
-    
-            // Générer un token sécurisé (par exemple avec crypto)
+
+            user.resetPasswordAttempts += 1; // Mettre à jour les tentatives de réinitialisation
+            user.lastResetPasswordAttempt = Date.now(); // Mettre à jour la dernière tentative
+            await user.save(); // Sauvegarder l'utilisateur
+
+            // Générer un token de réinitialisation sécurisé
             const resetToken = crypto.randomBytes(32).toString('hex');
-            // Hash le token avant de le sauvegarder en base pour éviter qu'il soit utilisé tel quel en cas de fuite
             const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    
-            // Sauvegarde du token et date d'expiration (par exemple 1h) dans l’utilisateur
-            user.resetPasswordToken = hashedToken;
-            user.resetPasswordExpires = Date.now() + 3600000; // 1 heure
-            await user.save();
-    
-            // Construire le lien de réinitialisation (à adapter à ton front-end)
-            const resetUrl = `https://jokkohealth.com/reset-password?token=${resetToken}&id=${user._id}`;
-    
-            // Envoi de l'email via ton service d'email
+
+            user.resetPasswordToken = hashedToken; // Sauvegarder le token haché
+            user.resetPasswordExpires = Date.now() + 3600000; // Expiration dans 1 heure
+            await user.save(); // Sauvegarder l'utilisateur
+
+            const resetUrl = `http://localhost:3000/create-password?token=${resetToken}&id=${user._id}`; // Construire l'URL de réinitialisation
+
+            // Envoyer un email de réinitialisation avec le lien
             await emailService.sendEmail({
                 to: email,
                 subject: 'Réinitialisation de votre mot de passe',
                 text: `Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le lien suivant pour le réinitialiser : ${resetUrl}`,
                 html: `<p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
-                       <p>Cliquez sur le lien suivant pour le réinitialiser : <a href="${resetUrl}">Réinitialiser mon mot de passe</a></p>`
+                    <p>Cliquez sur le lien suivant pour le réinitialiser : <a href="${resetUrl}">Réinitialiser mon mot de passe</a></p>`
             });
-    
-            return res.status(200).json({ message: "Un email de réinitialisation a été envoyé" });
+
+            return res.status(200).json({ message: "Un email de réinitialisation a été envoyé" }); // Répondre que l'email a été envoyé
         } catch (error) {
-            console.error("Erreur dans forgotPassword:", error);
-            return res.status(500).json({ message: "Erreur serveur" });
+            console.error("Erreur lors de la réinitialisation du mot de passe:", error); // Gérer les erreurs
+            return res.status(500).json({ message: "Erreur serveur" }); // Répondre avec une erreur serveur
         }
     }
-    
 
-    // 📌 Réinitialisation effectif du mot de passe
+    // 📌 Réinitialisation effective du mot de passe
     async resetPassword(req, res) {
-        const { token, id } = req.query;
-        const { newPassword } = req.body;
-
-        if (!token || !id || !newPassword) {
-            return res.status(400).json({ message: "Token, id et nouveau mot de passe requis" });
+        const { token, id } = req.query; // Récupérer le token et l'ID depuis l'URL
+        const { newPassword, confirmPassword } = req.body; // Récupérer les mots de passe depuis le corps de la requête
+    
+        // Vérifications de base
+        if (!token || !id || !newPassword || !confirmPassword) {
+            return res.status(400).json({ message: "Paramètres manquants" });
         }
-
+    
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ message: "Les mots de passe ne correspondent pas" });
+        }
+    
         try {
-            // Hash le token fourni pour comparer avec celui stocké en base
+            // Hacher le token reçu
             const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
-            // Trouver l'utilisateur dont le token correspond et qui n'est pas expiré
-            const user = await User.findOne({ 
+    
+            // Trouver l'utilisateur avec le token haché et vérifier l'expiration
+            const user = await User.findOne({
                 _id: id,
-                resetPasswordToken: hashedToken,
-                resetPasswordExpires: { $gt: Date.now() }
+                resetPasswordToken: hashedToken, // Comparer avec le token haché stocké
+                resetPasswordExpires: { $gt: Date.now() } // Vérifier que le token n'a pas expiré
             });
-
+    
             if (!user) {
                 return res.status(400).json({ message: "Token invalide ou expiré" });
             }
-
+    
             // Hacher le nouveau mot de passe
             user.motDePasse = await bcrypt.hash(newPassword, 10);
-            // Réinitialiser les champs de token
+    
+            // Réinitialiser les champs liés au token
             user.resetPasswordToken = undefined;
             user.resetPasswordExpires = undefined;
+            user.resetPasswordAttempts = 0; // Réinitialiser les tentatives
             await user.save();
-
-            // Optionnel : envoyer un email de confirmation de changement de mot de passe
+    
+            // Envoyer un email de confirmation
             await emailService.sendEmail({
                 to: user.email,
                 subject: 'Votre mot de passe a été réinitialisé',
                 text: 'Votre mot de passe a été mis à jour avec succès.',
                 html: '<p>Votre mot de passe a été mis à jour avec succès.</p>'
             });
-
+    
+            // Réponse de succès
             return res.status(200).json({ message: "Mot de passe réinitialisé avec succès" });
+    
         } catch (error) {
             console.error("Erreur dans resetPassword:", error);
             return res.status(500).json({ message: "Erreur serveur" });
         }
     }
 
-    // 📌 Changer de mot de passe pour un utilisateur authentifié
     async changePassword(req, res) {
-        const { currentPassword, newPassword } = req.body;
-        const userId = req.user.id; // Assure-toi que le middleware d'authentification définit req.user
-
+        const { currentPassword, newPassword } = req.body; // Récupérer l'ancien et le nouveau mot de passe
+        const userId = req.user.id; // Récupérer l'id de l'utilisateur authentifié
+    
         if (!currentPassword || !newPassword) {
             return res.status(400).json({ message: "Ancien et nouveau mot de passe requis" });
         }
-
+    
         try {
-            const user = await User.findById(userId);
+            const user = await User.findById(userId); // Trouver l'utilisateur par id
             if (!user) {
                 return res.status(404).json({ message: "Utilisateur non trouvé" });
             }
-
-            // Vérifier que l'ancien mot de passe est correct
-            const isMatch = await bcrypt.compare(currentPassword, user.motDePasse);
+    
+            const isMatch = await bcrypt.compare(currentPassword, user.motDePasse); // Comparer l'ancien mot de passe
             if (!isMatch) {
                 return res.status(401).json({ message: "L'ancien mot de passe est incorrect" });
             }
-
-            // Hacher et sauvegarder le nouveau mot de passe
-            user.motDePasse = await bcrypt.hash(newPassword, 10);
-            await user.save();
-
-            // Optionnel : envoyer un email de confirmation
+    
+            user.motDePasse = await bcrypt.hash(newPassword, 10); // Hacher le nouveau mot de passe
+            await user.save(); // Sauvegarder l'utilisateur
+    
+            // Envoyer un email de confirmation
             await emailService.sendEmail({
                 to: user.email,
                 subject: 'Confirmation du changement de mot de passe',
                 text: 'Votre mot de passe a été changé avec succès.',
                 html: '<p>Votre mot de passe a été changé avec succès.</p>'
             });
-
-            return res.status(200).json({ message: "Mot de passe modifié avec succès" });
+    
+            // Déconnecter l'utilisateur
+            const token = req.cookies.jwt; // Récupérer le token JWT à partir des cookies
+            if (!token) {
+                return res.status(400).json({ message: "Token manquant" });
+            }
+    
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (!decoded) {
+                return res.status(400).json({ message: "Token invalide" });
+            }
+    
+            // Ajouter le token à la liste noire
+            const blacklistedToken = new BlacklistedToken({
+                token,
+                expiresAt: new Date(decoded.exp * 1000)
+            });
+    
+            await blacklistedToken.save();
+            res.clearCookie('jwt'); // Supprimer le cookie JWT
+    
+            // Réponse de succès
+            return res.status(200).json({ message: "Mot de passe modifié avec succès. Vous avez été déconnecté." });
+    
         } catch (error) {
             console.error("Erreur dans changePassword:", error);
             return res.status(500).json({ message: "Erreur serveur" });

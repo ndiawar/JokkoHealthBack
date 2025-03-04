@@ -1,12 +1,10 @@
-import express from 'express'; // Ajoutez cette ligne pour importer express
-import { validateLogin, validateRegistration } from '../../middlewares/validation/authValidation.js';
-import { authenticate } from '../../middlewares/auth/authenticate.js';
-import PasswordController from '../../controllers/auth/passwordController.js';
-import { passwordValidator } from '../../middlewares/validation/passwordValidation.js';
+import express from 'express'; // Importer express
+import { validateLogin, validateRegistration } from '../../middlewares/validation/authValidation.js'; // Importer les validations
+import { authenticate } from '../../middlewares/auth/authenticate.js'; // Importer le middleware d'authentification
+import PasswordController from '../../controllers/auth/passwordController.js'; // Importer le contrôleur de mot de passe
+import { passwordValidator } from '../../middlewares/validation/passwordValidation.js'; // Importer les validations de mot de passe
 
-
-
-const router = express.Router();
+const router = express.Router(); // Créer un routeur express
 
 /**
  * @swagger
@@ -43,7 +41,7 @@ const router = express.Router();
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.post('/forgot-password', passwordValidator.forgotPassword, PasswordController.forgotPassword);
+router.post('/forgot-password', passwordValidator.forgotPassword, PasswordController.forgotPassword); // Route pour demander la réinitialisation du mot de passe
 
 /**
  * @swagger
@@ -91,7 +89,7 @@ router.post('/forgot-password', passwordValidator.forgotPassword, PasswordContro
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.post('/reset-password', passwordValidator.resetPassword, PasswordController.resetPassword);
+router.post('/reset-password', passwordValidator.resetPassword, PasswordController.resetPassword); // Route pour réinitialiser le mot de passe
 
 /**
  * @swagger
@@ -132,11 +130,11 @@ router.post('/reset-password', passwordValidator.resetPassword, PasswordControll
  *       401:
  *         description: Non authentifié.
  */
-router.post('/change-password', authenticate, passwordValidator.changePassword, PasswordController.changePassword);
+router.post('/change-password', authenticate, passwordValidator.changePassword, PasswordController.changePassword); // Route pour changer le mot de passe
 
 // Protected routes
 router.get('/profile', authenticate, (req, res) => {
-    res.send('Profile route');
+    res.send('Profile route'); // Route protégée pour le profil
 });
 
-export default router;
+export default router; // Exporter le routeur
