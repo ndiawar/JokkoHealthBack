@@ -1,5 +1,8 @@
 import MedicalRecord from '../../models/medical/medicalModel.js';
 import { validationResult } from 'express-validator';
+import User from '../../models/user/userModel.js';
+
+
 
 // Fonction utilitaire pour gérer les erreurs de manière centralisée
 const handleErrorResponse = (res, statusCode, message, details) => {
@@ -68,13 +71,53 @@ export const getAllMedicalRecords = async (req, res) => {
     }
 };
 
-// Récupérer un dossier médical par ID
-export const getMedicalRecordById = async (req, res) => {
+// // Récupérer un dossier médical par ID
+// export const getMedicalRecordById = async (req, res) => {
+//     try {
+//         const { recordId } = req.params;
+//         const { role, id: userId } = req.user;
+
+//         // Vérifier si l'utilisateur est connecté et récupérer son ID
+//         const user = await User.findById(userId);
+//         if (!user) {
+//             return handleErrorResponse(res, 401, 'Utilisateur non authentifié.');
+//         }
+
+//         // Récupérer le dossier médical par ID
+//         const record = await MedicalRecord.findById(recordId)
+//             .populate('patientId', 'nom prenom email telephone')
+//             .populate('medecinId', 'nom prenom email telephone');
+
+//         if (!record) {
+//             return handleErrorResponse(res, 404, 'Dossier médical non trouvé.');
+//         }
+
+//         // Vérifier si l'utilisateur a accès au dossier médical
+//         if ((role === 'Medecin' && record.medecinId._id.toString() !== userId) ||
+//             (role === 'Patient' && record.patientId._id.toString() !== userId)) {
+//             return handleErrorResponse(res, 403, 'Accès refusé : Ce dossier ne vous appartient pas.');
+//         }
+
+//         return res.status(200).json({ success: true, record });
+//     } catch (error) {
+//         console.error("Erreur lors de la récupération du dossier médical :", error);
+//         handleErrorResponse(res, 500, "Erreur lors de la récupération du dossier médical.", error.message);
+//     }
+// };
+
+// Récupérer le dossier médical de l'utilisateur connecté
+export const getMedicalRecordByUser = async (req, res) => {
     try {
-        const { recordId } = req.params;
         const { role, id: userId } = req.user;
 
-        const record = await MedicalRecord.findById(recordId)
+        // Vérifier si l'utilisateur est connecté et récupérer son ID
+        const user = await User.findById(userId).populate('medicalRecord');
+        if (!user) {
+            return handleErrorResponse(res, 401, 'Utilisateur non authentifié.');
+        }
+
+        // Récupérer le dossier médical associé à l'utilisateur
+        const record = await MedicalRecord.findById(user.medicalRecord)
             .populate('patientId', 'nom prenom email telephone')
             .populate('medecinId', 'nom prenom email telephone');
 
@@ -82,6 +125,7 @@ export const getMedicalRecordById = async (req, res) => {
             return handleErrorResponse(res, 404, 'Dossier médical non trouvé.');
         }
 
+        // Vérifier si l'utilisateur a accès au dossier médical
         if ((role === 'Medecin' && record.medecinId._id.toString() !== userId) ||
             (role === 'Patient' && record.patientId._id.toString() !== userId)) {
             return handleErrorResponse(res, 403, 'Accès refusé : Ce dossier ne vous appartient pas.');

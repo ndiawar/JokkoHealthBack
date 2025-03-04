@@ -354,6 +354,8 @@ async logout(req, res) {
             res.status(500).json({ message: 'Erreur serveur' });
         }
     }
+
+
 }
 
 // Exporte la classe directement
