@@ -14,7 +14,7 @@ class AppointmentController {
             return res.status(400).json({ errors: errors.array() });
         }
 
-        const { date, heure_debut, heure_fin, specialiste } = req.body;
+        const { date, heure_debut, heure_fin, specialiste, doctorId, patientId } = req.body; // Ajout de patientId
 
         // Vérification de la date
         const appointmentDate = new Date(date);
@@ -27,25 +27,43 @@ class AppointmentController {
             return res.status(400).json({ message: 'L\'heure de fin doit être supérieure à l\'heure de début.' });
         }
 
-        const newAppointment = await Appointment.create({ date, heure_debut, heure_fin, specialiste });
+        const newAppointment = await Appointment.create({ 
+            date, 
+            heure_debut, 
+            heure_fin, 
+            specialiste, 
+            doctorId,
+            patientId // Inclure patientId lors de la création
+        });
+        
         return res.status(201).json(newAppointment);
     } catch (error) {
+        console.error(error); // Affichez l'erreur pour le débogage
         return res.status(500).json({ error: 'Erreur lors de la création du rendez-vous.' });
     }
-}
-
-
-     // Lire tous les rendez-vous avec les informations du médecin
-     async list(req, res) {
+}   // Lire tous les rendez-vous avec les informations du médecin// Lire tous les rendez-vous avec les informations du médecin
+    async list(req, res) {
         try {
-            const appointments = await Appointment.find().populate('doctorId', 'nom email');
+            const appointments = await Appointment.find()
+                .populate({
+                    path: 'doctorId', 
+                    select: 'nom prenom telephone'
+                });
+    
+            console.log('📅 Rendez-vous trouvés:', appointments);
+    
+            if (!appointments || appointments.length === 0) {
+                return res.status(404).json({ message: 'Aucun rendez-vous trouvé.' });
+            }
+    
             return res.status(200).json(appointments);
         } catch (error) {
+            console.error('❌ Erreur lors de la récupération des rendez-vous:', error);
             return res.status(500).json({ error: 'Erreur lors de la récupération des rendez-vous.' });
         }
     }
-
-
+    
+    
     // Lire un rendez-vous par ID
     async read(req, res) {
         const appointment = await Appointment.findById(req.params.id);

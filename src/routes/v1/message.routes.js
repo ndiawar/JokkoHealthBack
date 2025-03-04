@@ -41,7 +41,7 @@ const router = express.Router();
  *       500:
  *         description: Erreur lors de l'ajout du message
  */
-router.post('/',  addMessage);
+router.post('/', addMessage);
 
 /**
  * @swagger

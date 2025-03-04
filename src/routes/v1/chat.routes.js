@@ -38,7 +38,7 @@ const router = express.Router();
  *       500:
  *         description: Erreur lors de la création du chat
  */
-router.post('/',  createChat);
+router.post('/', createChat);
 
 /**
  * @swagger
@@ -110,6 +110,6 @@ router.get('/find/:firstId/:secondId', findChat);
  *       500:
  *         description: Erreur lors de la récupération des chats
  */
-router.get('/',listChats);
+router.get('/', listChats);
 
 export default router;

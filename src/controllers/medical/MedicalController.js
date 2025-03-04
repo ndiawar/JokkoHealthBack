@@ -62,13 +62,25 @@ export const getAllMedicalRecords = async (req, res) => {
 };
 
 
-// Récupérer un dossier médical par ID
-export const getMedicalRecordById = async (req, res) => {
+// Importez handleErrorResponse si ce n'est pas déjà fait
+const handleErrorResponse = (res, statusCode, message, errorDetails = "") => {
+    res.status(statusCode).json({ success: false, message, error: errorDetails });
+};
+
+// Dans votre contrôleur
+// Récupérer le dossier médical de l'utilisateur connecté
+export const getMedicalRecordByUser = async (req, res) => {
     try {
-        const { recordId } = req.params;
         const { role, id: userId } = req.user;
 
-        const record = await MedicalRecord.findById(recordId)
+        // Vérifier si l'utilisateur est connecté et récupérer son ID
+        const user = await User.findById(userId).populate('medicalRecord');
+        if (!user) {
+            return handleErrorResponse(res, 401, 'Utilisateur non authentifié.');
+        }
+
+        // Récupérer le dossier médical associé à l'utilisateur
+        const record = await MedicalRecord.findById(user.medicalRecord)
             .populate('patientId', 'nom prenom email telephone')
             .populate('medecinId', 'nom prenom email telephone');
 
@@ -76,6 +88,7 @@ export const getMedicalRecordById = async (req, res) => {
             return handleErrorResponse(res, 404, 'Dossier médical non trouvé.');
         }
 
+        // Vérifier si l'utilisateur a accès au dossier médical
         if ((role === 'Medecin' && record.medecinId._id.toString() !== userId) ||
             (role === 'Patient' && record.patientId._id.toString() !== userId)) {
             return handleErrorResponse(res, 403, 'Accès refusé : Ce dossier ne vous appartient pas.');
@@ -103,12 +116,14 @@ export const updateMedicalRecord = async (req, res) => {
         const record = await findMedicalRecord(recordId, res);
         if (!record) return;
 
+        // Vérification des permissions
         if ((role === 'Medecin' && record.medecinId.toString() !== userId) ||
             (role === 'Patient' && record.patientId.toString() !== userId)) {
             return handleErrorResponse(res, 403, 'Accès refusé : Ce dossier ne vous appartient pas.');
         }
 
         const medicalUpdates = {};
+        // Ne pas inclure patientId dans les mises à jour
         if (updates.age !== undefined) medicalUpdates.age = updates.age;
         if (updates.poids !== undefined) medicalUpdates.poids = updates.poids;
         if (updates.groupeSanguin !== undefined) medicalUpdates.groupeSanguin = updates.groupeSanguin;
@@ -116,6 +131,7 @@ export const updateMedicalRecord = async (req, res) => {
         if (updates.hospitalisation !== undefined) medicalUpdates.hospitalisation = updates.hospitalisation;
         if (updates.antecedentsFamiliaux !== undefined) medicalUpdates.antecedentsFamiliaux = updates.antecedentsFamiliaux;
 
+        // Mettez à jour seulement les champs nécessaires
         const updatedRecord = await MedicalRecord.findByIdAndUpdate(recordId, medicalUpdates, { new: true });
 
         return res.status(200).json({ success: true, message: 'Dossier médical mis à jour avec succès.', record: updatedRecord });
@@ -124,7 +140,6 @@ export const updateMedicalRecord = async (req, res) => {
         handleErrorResponse(res, 500, "Erreur lors de la mise à jour du dossier médical.", error.message);
     }
 };
-
 // Supprimer un dossier médical
 export const deleteMedicalRecord = async (req, res) => {
     try {
@@ -146,4 +161,4 @@ export const deleteMedicalRecord = async (req, res) => {
         console.error("Erreur lors de la suppression du dossier médical :", error);
         handleErrorResponse(res, 500, "Erreur lors de la suppression du dossier médical.", error.message);
     }
-};
+}
