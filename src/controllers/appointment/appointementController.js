@@ -296,24 +296,24 @@ class AppointmentController {
                 })
                 .sort({ date: -1 })
                 .lean(); // Conversion en objets JavaScript simples
-
+    
             const filteredAppointments = acceptedAppointments.filter(appointment => 
                 appointment.doctorId && appointment.patientId
             );
-
+    
             return res.status(200).json({
                 success: true,
                 count: filteredAppointments.length,
                 data: filteredAppointments
             });
-
+    
         } catch (error) {
             console.error('Erreur détaillée:', {
                 message: error.message,
                 stack: error.stack,
                 query: error.query
             });
-
+    
             return res.status(500).json({
                 success: false,
                 error: {
@@ -324,34 +324,8 @@ class AppointmentController {
                         'Voir les logs serveur'
                 }
             });
-            const { date, heure_debut, heure_fin, specialiste, doctorId, patientId } = req.body; // Ajout de patientId
-
-            // Vérification de la date
-            const appointmentDate = new Date(date);
-            if (appointmentDate < new Date()) {
-                return res.status(400).json({ message: 'La date ne peut pas être dans le passé.' });
-            }
-
-            // Vérification des heures
-            if (heure_debut >= heure_fin) {
-                return res.status(400).json({ message: 'L\'heure de fin doit être supérieure à l\'heure de début.' });
-            }
-
-            const newAppointment = await Appointment.create({ 
-                date, 
-                heure_debut, 
-                heure_fin, 
-                specialiste, 
-                doctorId,
-                patientId // Inclure patientId lors de la création
-            });
-            
-            return res.status(201).json(newAppointment);
-        } catch (error) {
-            console.error(error); // Affichez l'erreur pour le débogage
-            return res.status(500).json({ error: 'Erreur lors de la création du rendez-vous.' });
-        }
-    }     
+        } 
+    }
 // Lire tous les rendez-vous avec les informations du médecin// Lire tous les rendez-vous avec les informations du médecin
     async list(req, res) {
         try {

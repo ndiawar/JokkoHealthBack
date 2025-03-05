@@ -106,9 +106,9 @@ import User from '../../models/user/userModel.js';
     // };
 
     // Importez handleErrorResponse si ce n'est pas déjà fait
-    const handleErrorResponse = (res, statusCode, message, errorDetails = "") => {
-        res.status(statusCode).json({ success: false, message, error: errorDetails });
-    };
+    // const handleErrorResponse = (res, statusCode, message, errorDetails = "") => {
+    //     res.status(statusCode).json({ success: false, message, error: errorDetails });
+    // };
 
     // Dans votre contrôleur
     // Récupérer le dossier médical de l'utilisateur connecté
