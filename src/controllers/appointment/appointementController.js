@@ -2,11 +2,68 @@ import Appointment from '../../models/appointment/appointement.js'; // Correctio
 import User from '../../models/user/userModel.js';
 import MedicalRecord from '../../models/medical/medicalModel.js';
 import { validationResult } from 'express-validator';
+import moment from 'moment';
 
 class AppointmentController {
 
+    async getAppointmentsForCalendar(req, res) {
+        try {
+            const { startDate, endDate } = req.query;
+    
+            // Vérification des dates de début et de fin
+            if (!startDate || !endDate) {
+                return res.status(400).json({ message: 'Les dates de début et de fin sont requises.' });
+            }
+    
+            // Validation des dates au format correct
+            if (!moment(startDate, "YYYY-MM-DD", true).isValid() || !moment(endDate, "YYYY-MM-DD", true).isValid()) {
+                return res.status(400).json({ message: 'Les dates sont mal formatées. Utilisez le format YYYY-MM-DD.' });
+            }
+    
+            // Convertir les dates en format MongoDB
+            const start = moment(startDate).startOf('day').toDate();
+            const end = moment(endDate).endOf('day').toDate();
+    
+            // Vérification des valeurs de date après conversion
+            console.log('start:', start); 
+            console.log('end:', end);
+    
+            // Rechercher les rendez-vous dans la plage de dates
+            const appointments = await Appointment.find({
+                date: { $gte: start, $lte: end }
+            }).populate('doctorId patientId'); // Vérifier que les ObjectId existent
+    
+            // Si aucun rendez-vous trouvé
+            if (appointments.length === 0) {
+                return res.status(404).json({ message: 'Aucun rendez-vous trouvé dans cette plage de dates.' });
+            }
+    
+            // Structurer les rendez-vous pour le calendrier
+            const events = appointments.map(appointment => ({
+                id: appointment._id,
+                title: `Rendez-vous avec ${appointment.specialiste}`,
+                start: moment(appointment.date).set('hour', appointment.heure_debut.split(':')[0])
+                                                .set('minute', appointment.heure_debut.split(':')[1])
+                                                .toDate(),
+                end: moment(appointment.date).set('hour', appointment.heure_fin.split(':')[0])
+                                              .set('minute', appointment.heure_fin.split(':')[1])
+                                              .toDate(),
+                specialiste: appointment.specialiste,
+                doctorId: appointment.doctorId ? appointment.doctorId._id : null,  // Vérifier si doctorId est présent
+                patientId: appointment.patientId ? appointment.patientId._id : null,  // Vérifier si patientId est présent
+                statutDemande: appointment.statutDemande,
+                demandeParticipe: appointment.demandeParticipe
+            }));
+    
+            res.json(events);
+        } catch (error) {
+            console.error('Erreur lors de la récupération des rendez-vous:', error);
+            res.status(500).json({ message: 'Erreur serveur lors de la récupération des rendez-vous.' });
+        }
+    }
+    
+    
     // Créer un rendez-vous
-     // Créer un rendez-vous
     async create(req, res) {
         try {
             const errors = validationResult(req);

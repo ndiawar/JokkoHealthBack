@@ -305,4 +305,8 @@ router.get('/by-doctor', authenticate, AppointmentController.getAppointmentsByDo
  */
 router.get('/:id', authenticate, validateObjectId, AppointmentController.read); // Ajout d'une validation d'ID
 
+
+
+router.get('/calendar', AppointmentController.getAppointmentsForCalendar);
+
 export default router;

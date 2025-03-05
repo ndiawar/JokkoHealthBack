@@ -1,9 +1,19 @@
 import User from '../../models/user/userModel.js'; // Importer le modèle utilisateur
+import BlacklistedToken from '../../models/auth/blacklistedToken.js'; // Import du modèle
 import { validationResult } from 'express-validator'; // Importer les résultats de validation
 import bcrypt from 'bcryptjs'; // Importer bcrypt pour le hachage des mots de passe
 import jwt from 'jsonwebtoken'; // Importer jsonwebtoken pour la gestion des tokens
 import crypto from 'crypto'; // Importer crypto pour la génération de tokens sécurisés
-import emailService from '../../services/email/emailService.js'; // Importer le service d'email
+import emailService from '../../services/email/emailService.js';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import path from 'path';
+import mjml from 'mjml';
+import fs from 'fs';
+
+// Utilisation de fileURLToPath pour obtenir le répertoire actuel
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 class PasswordController {
     // 📌 Demande de réinitialisation de mot de passe (mot de passe oublié)
@@ -46,13 +56,25 @@ class PasswordController {
 
             const resetUrl = `http://localhost:3000/create-password?token=${resetToken}&id=${user._id}`; // Construire l'URL de réinitialisation
 
-            // Envoyer un email de réinitialisation avec le lien
+            // Charger le template MJML
+            const mjmlFilePath = path.join(__dirname, '../../../src/templates/emails/resetPassword/resetPassword.mjml');
+            const mjmlContent = fs.readFileSync(mjmlFilePath, 'utf8');
+
+            // Compiler le MJML en HTML
+            const { html } = mjml(mjmlContent);
+
+            // Remplacer les variables dynamiques
+            const htmlContent = html
+                .replace('{{prenom}}', user.prenom)
+                .replace('{{nom}}', user.nom)
+                .replace('{{resetLink}}', resetUrl);
+
+            // Envoyer l'email
             await emailService.sendEmail({
                 to: email,
                 subject: 'Réinitialisation de votre mot de passe',
                 text: `Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le lien suivant pour le réinitialiser : ${resetUrl}`,
-                html: `<p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
-                    <p>Cliquez sur le lien suivant pour le réinitialiser : <a href="${resetUrl}">Réinitialiser mon mot de passe</a></p>`
+                html: htmlContent
             });
 
             return res.status(200).json({ message: "Un email de réinitialisation a été envoyé" }); // Répondre que l'email a été envoyé
@@ -100,12 +122,25 @@ class PasswordController {
             user.resetPasswordAttempts = 0; // Réinitialiser les tentatives
             await user.save();
     
-            // Envoyer un email de confirmation
+            // Charger le template MJML
+            const mjmlFilePath = path.join(__dirname, '../../../src/templates/emails/passwordChanged/passwordChanged.mjml');
+            const mjmlContent = fs.readFileSync(mjmlFilePath, 'utf8');
+
+            // Compiler le MJML en HTML
+            const { html } = mjml(mjmlContent);
+
+            // Remplacer les variables dynamiques
+            const htmlContent = html
+                .replace('{{prenom}}', user.prenom)
+                .replace('{{nom}}', user.nom)
+                .replace('{{loginLink}}', 'http://localhost:3000/login'); // Lien vers la page de connexion
+
+            // Envoyer l'email
             await emailService.sendEmail({
                 to: user.email,
-                subject: 'Votre mot de passe a été réinitialisé',
-                text: 'Votre mot de passe a été mis à jour avec succès.',
-                html: '<p>Votre mot de passe a été mis à jour avec succès.</p>'
+                subject: 'Réinitialisation de mot de passe réussie',
+                text: 'Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter à votre compte.',
+                html: htmlContent
             });
     
             // Réponse de succès

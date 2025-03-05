@@ -8,6 +8,7 @@ import appointmentRoutes from './v1/appointment.routes.js';
 import NotificationRoutes from './v1/notification.routes.js';
 import MedicalRoutes from './v1/medical.routes.js';
 import logRoutes from './v1/log.routes.js';
+import filteruserRoutes from './v1/filteruser.route.js';
 
 const router = express.Router();
 console.log(router.stack.map(r => r.route ? r.route.path : r.name));
@@ -19,6 +20,7 @@ router.use('/health', healthCheck);
 // API Routes
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
+router.use('/filteruser', filteruserRoutes);
 router.use('/medical', MedicalRoutes);
 router.use('/chats', ChatRoutes);
 router.use('/messages', MessageRoutes);
