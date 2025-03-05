@@ -8,7 +8,7 @@ const appointmentSchema = new mongoose.Schema({
     patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     doctorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     demandeParticipe: { type: Boolean, default: false },
-    statutDemande: { type: String, default: 'en attente' }
+    statutDemande: { type: String, default: 'en attente'}
 }, { timestamps: true });
 
 export default mongoose.model('Appointment', appointmentSchema);
