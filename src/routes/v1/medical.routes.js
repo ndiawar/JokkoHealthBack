@@ -3,7 +3,8 @@ import {
     getAllMedicalRecords,
     getMedicalRecordByUser,
     updateMedicalRecord,
-    deleteMedicalRecord
+    deleteMedicalRecord,
+    // getMedicalRecordByUser // Importez la nouvelle fonction
 } from '../../controllers/medical/MedicalController.js';
 import { authenticate } from '../../middlewares/auth/authenticate.js';
 import logMiddleware from '../../middlewares/logs/logMiddleware.js';
@@ -44,6 +45,7 @@ router.get('/', authenticate, logMiddleware, getAllMedicalRecords);
  *         description: Dossier médical non trouvé
  */
 router.get('/me', authenticate, logMiddleware, getMedicalRecordByUser);
+
 
 /**
  * @swagger

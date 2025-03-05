@@ -304,6 +304,42 @@ router.get('/by-doctor', authenticate, AppointmentController.getAppointmentsByDo
  *         description: Erreur lors de la récupération du rendez-vous
  */
 router.get('/:id', authenticate, validateObjectId, AppointmentController.read); // Ajout d'une validation d'ID
+router.put('/:id/statu-demande',authenticate, roleCheck(['Patient', 'Medecin']), AppointmentController.gestionDemande);
+/**
+ * @swagger
+ * /appointments/demandes-participation:
+ *   get:
+ *     summary: Lister les demandes de participation
+ *     description: Cet endpoint retourne la liste des demandes de participation aux rendez-vous.
+ *     tags: [Rendez-vous]
+ *     responses:
+ *       200:
+ *         description: Liste des demandes de participation.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   date:
+ *                     type: string
+ *                   heure_debut:
+ *                     type: string
+ *                   heure_fin:
+ *                     type: string
+ *                   patient:
+ *                     type: object
+ *                     properties:
+ *                       nom:
+ *                         type: string
+ *                       prenom:
+ *                         type: string
+ *       404:
+ *         description: Aucune demande de participation trouvée.
+ */
 
 
 
