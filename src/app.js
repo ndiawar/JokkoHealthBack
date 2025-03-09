@@ -22,6 +22,7 @@ dotenv.config();
 const app = express();
 const port = 3001; // Assurez-vous que le port est correct
 
+
 connectDB();
 
 app.use(corsConfig);
@@ -31,8 +32,13 @@ app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
+// Servir le dossier 'public' statiquement
+// app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+// app.use('/public', express.static(path.join(__dirname, '../public')));
 
-app.use('/public', express.static(path.join(__dirname, '../public')));
+
+app.use('/uploads', express.static('public/uploads'));
+
 
 setupSwagger(app);
 

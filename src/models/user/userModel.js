@@ -6,21 +6,21 @@ const userSchema = new mongoose.Schema({
     prenom: { type: String, required: false, trim: true },
     email: { 
         type: String, 
-        required: false, 
+        required: true, 
         unique: true, 
         lowercase: true, 
         trim: true 
     },
     motDePasse: { 
         type: String, 
-        required: false, 
+        required: true, 
         minlength: 6, 
         default: 'jokkohealth25'
     },
     role: { 
         type: String, 
         enum: ['Patient', 'Medecin', 'SuperAdmin'], 
-        required: false 
+        required: true, 
     },
     dateNaissance: { type: Date },
     sexe: { 
@@ -30,12 +30,14 @@ const userSchema = new mongoose.Schema({
     telephone: { 
         type: String, 
         unique: true,
+        required: true, 
         match: [
           /^(70|75|76|77|78)\d{7}$/, 
           'Numéro de téléphone invalide. Il doit commencer par 70, 75, 76, 77, 78 suivi de 7 chiffres.'
         ]
     },
     username: { type: String, unique: true, required: false },
+    imageUrl: { type: String },  // Pour stocker l'URL de l'image
     // Indique si l'utilisateur est bloqué
     blocked: { type: Boolean, default: false },
     // Indique si l'utilisateur est archivé

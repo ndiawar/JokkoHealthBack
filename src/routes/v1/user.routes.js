@@ -3,6 +3,8 @@ import UserController from '../../controllers/users/userController.js';
 import { userValidator } from '../../middlewares/validation/userValidation.js';
 import { authenticate } from '../../middlewares/auth/authenticate.js';
 import roleCheck from '../../middlewares/auth/roleCheck.js';  // Import du middleware de vérification des rôles
+import upload from '../../config/multerConfig.js';
+import multer from 'multer';
 
 const router = express.Router();
 
@@ -300,7 +302,7 @@ router.put('/:id/unarchive', authenticate, roleCheck(['Patient', 'Medecin', 'Sup
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.delete('/:id', authenticate, roleCheck(['Patient', 'Medecin', 'SuperAdmin']), UserController.delete.bind(UserController));
+router.delete('/:id', UserController.delete.bind(UserController));
 
 /**
  * @swagger
@@ -361,6 +363,7 @@ router.delete('/:id', authenticate, roleCheck(['Patient', 'Medecin', 'SuperAdmin
  *         description: Données invalides.
  */
 router.post('/register', authenticate, userValidator.register, UserController.register);
+
 
 /**
  * @swagger
