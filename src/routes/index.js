@@ -10,6 +10,7 @@ import MedicalRoutes from './v1/medical.routes.js';
 import logRoutes from './v1/log.routes.js';
 import filteruserRoutes from './v1/filteruser.route.js';
 import rendezvousRoutes from './v1/rendezvous.routes.js';
+import SensorRoutes from './v1/sensor.routes.js';
 
 const router = express.Router();
 
@@ -32,6 +33,9 @@ router.use('/notifications', NotificationRoutes);
 router.use('/medical', MedicalRoutes);
 router.use('/logs', logRoutes);
 router.use('/rendezvous', rendezvousRoutes);
+
+router.use('/sensors', SensorRoutes);
+
 
 
 export default router;

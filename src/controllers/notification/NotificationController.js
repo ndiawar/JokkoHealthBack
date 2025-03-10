@@ -25,18 +25,43 @@ export const createNotification = async (req, res) => {
             type
         });
 
-        await newNotification.save(); // Sauvegarde la notification dans MongoDB
+        await newNotification.save(); // Sauvegarde dans MongoDB
 
-        res.status(200).json({ message: "Notification créée avec succès.", notification: newNotification });
+        // Utilisation de populate pour ajouter les informations de l'utilisateur (prenom, nom, email)
+        const populatedNotification = await Notification.findById(newNotification._id)
+            .populate('userId', 'prenom nom email');  // Spécification des champs dans l'ordre souhaité
+
+        // Envoi de la notification via WebSocket si un socket est connecté
+        if (socketClients[userId]) {
+            socketClients[userId].emit("new-notification", { userId, message, type });
+        } else {
+            console.warn(`⚠️ Pas de socket trouvé pour l'utilisateur ${userId}.`);
+        }
+
+        res.status(200).json({
+            message: "Notification créée avec succès.",
+            notification: populatedNotification
+        });
     } catch (error) {
         res.status(500).json({ error: "Erreur lors de la création de la notification.", details: error.message });
     }
 };
+
 // 📩 Récupérer les notifications d'un utilisateur
 export const getUserNotifications = async (req, res) => {
     try {
         const { userId } = req.params;
         const notifications = await Notification.find({ userId }).sort({ createdAt: -1 });
+        res.status(200).json(notifications);
+    } catch (error) {
+        res.status(500).json({ error: "Erreur lors de la récupération des notifications.", details: error.message });
+    }
+};
+
+// 📩 Récupérer toutes les notifications
+export const getAllNotifications = async (req, res) => {
+    try {
+        const notifications = await Notification.find().sort({ createdAt: -1 });
         res.status(200).json(notifications);
     } catch (error) {
         res.status(500).json({ error: "Erreur lors de la récupération des notifications.", details: error.message });
@@ -58,11 +83,13 @@ export const markAsRead = async (req, res) => {
         notification.isRead = true;
         await notification.save();
 
-        res.status(200).json({ message: "Notification désactivée avec succès.", notification });
+        res.status(200).json({ message: "Notification marquée comme lue avec succès.", notification });
     } catch (error) {
-        res.status(500).json({ error: "Erreur lors de la désactivation de la notification.", details: error.message });
+        res.status(500).json({ error: "Erreur lors du marquage de la notification comme lue.", details: error.message });
     }
 };
+
+// ❌ Désactiver une notification
 export const disableNotification = async (req, res) => {
     try {
         const { notificationId } = req.params;
