@@ -18,17 +18,18 @@ export const authenticate = async (req, res, next) => {
         // Vérification du token JWT
         const decoded = await verifyToken(token, process.env.JWT_SECRET);
 
-        const user = await User.findById(decoded.id);
+        const user = await User.findById(decoded.id).populate('medicalRecord'); // Ajout de la population du dossier médical
         if (!user) {
             return res.status(401).json({ message: 'Utilisateur non trouvé' });
         }
 
-        req.user = user;  // Attache l'utilisateur à la requête
+        req.user = user;  // Attache l'utilisateur avec le dossier médical à la requête
         next();
     } catch (error) {
         return res.status(401).json({ message: 'Non autorisé', error: error.message });
     }
 };
+
 
 
 // Middleware pour récupérer les informations de l'utilisateur authentifié

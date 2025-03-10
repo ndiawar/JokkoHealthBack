@@ -3,7 +3,9 @@ import UserController from '../../controllers/users/userController.js';
 import { userValidator } from '../../middlewares/validation/userValidation.js';
 import { authenticate } from '../../middlewares/auth/authenticate.js';
 import roleCheck from '../../middlewares/auth/roleCheck.js';  // Import du middleware de vérification des rôles
-
+import upload from '../../config/multerConfig.js';
+import multer from 'multer';
+import logAction from '../../middlewares/logs/logMiddleware.js';
 const router = express.Router();
 
 /**
@@ -41,7 +43,7 @@ router.get('/', authenticate, UserController.list.bind(UserController));
  *       401:
  *         description: Utilisateur non authentifié.
  */
-router.get('/me', authenticate, UserController.getMe);
+router.get('/me', authenticate, logAction, UserController.getMe);
 
 /**
  * @swagger
@@ -125,7 +127,7 @@ router.get('/:id', authenticate, roleCheck(['Patient', 'Medecin', 'SuperAdmin'])
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.put('/:id', authenticate, roleCheck(['Patient', 'Medecin', 'SuperAdmin']), UserController.updateProfile,  UserController.update.bind(UserController));
+router.put('/:id', authenticate, logAction, roleCheck(['Patient', 'Medecin', 'SuperAdmin']), UserController.updateProfile,  UserController.update.bind(UserController));
 
 /**
  * @swagger
@@ -182,7 +184,7 @@ router.put('/:id', authenticate, roleCheck(['Patient', 'Medecin', 'SuperAdmin'])
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.patch('/:id', authenticate, roleCheck(['Patient', 'Medecin', 'SuperAdmin']), UserController.updateProfile,  UserController.update.bind(UserController));
+router.patch('/:id', authenticate, logAction, roleCheck(['Patient', 'Medecin', 'SuperAdmin']), UserController.updateProfile,  UserController.update.bind(UserController));
 
 /**
  * @swagger
@@ -300,7 +302,7 @@ router.put('/:id/unarchive', authenticate, roleCheck(['Patient', 'Medecin', 'Sup
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.delete('/:id', authenticate, roleCheck(['Patient', 'Medecin', 'SuperAdmin']), UserController.delete.bind(UserController));
+router.delete('/:id', UserController.delete.bind(UserController));
 
 /**
  * @swagger
@@ -360,7 +362,8 @@ router.delete('/:id', authenticate, roleCheck(['Patient', 'Medecin', 'SuperAdmin
  *       400:
  *         description: Données invalides.
  */
-router.post('/register', authenticate, userValidator.register, UserController.register);
+router.post('/register', logAction, authenticate, userValidator.register, UserController.register);
+
 
 /**
  * @swagger
@@ -388,7 +391,7 @@ router.post('/register', authenticate, userValidator.register, UserController.re
  *       401:
  *         description: Identifiants invalides.
  */
-router.post('/login', userValidator.login, UserController.login);
+router.post('/login', logAction, userValidator.login, UserController.login);
 
 /**
  * @swagger
@@ -405,6 +408,6 @@ router.post('/login', userValidator.login, UserController.login);
  *       500:
  *         description: Erreur serveur lors de la déconnexion.
  */
-router.post('/logout', authenticate, UserController.logout);
+router.post('/logout', logAction, authenticate, UserController.logout);
 
 export default router;

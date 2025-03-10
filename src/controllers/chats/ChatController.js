@@ -3,38 +3,43 @@ import User from '../../models/user/userModel.js'; // Vérifiez ce chemin
 import mongoose from 'mongoose'; // Assurez-vous d'importer mongoose
 
 export const createChat = async (req, res) => {
-    try {
-        const { senderId, receiverId } = req.body;
-        console.log("SenderId:", senderId);
-        console.log("ReceiverId:", receiverId);
+  try {
+      const { senderId, receiverId } = req.body;
 
-        // Vérification des IDs
-        const sender = await User.findById(senderId);
-        const receiver = await User.findById(receiverId);
-        if (!mongoose.Types.ObjectId.isValid(senderId) || !mongoose.Types.ObjectId.isValid(receiverId)) {
-            return res.status(400).json({ message: 'ID de l\'expéditeur ou du destinataire invalide.' });
-        }
-        if (!sender || !receiver) {
-            return res.status(400).json({ message: 'Utilisateur non trouvé pour l\'expéditeur ou le destinataire.' });
-        }
+      if (!senderId || !receiverId) {
+          return res.status(400).json({ message: 'Les IDs de l\'expéditeur et du destinataire sont requis.' });
+      }
 
-        // Créer le chat
-        const newChat = new ChatModel({
-            members: [senderId, receiverId],
-        });
+      if (!mongoose.Types.ObjectId.isValid(senderId) || !mongoose.Types.ObjectId.isValid(receiverId)) {
+          return res.status(400).json({ message: 'ID de l\'expéditeur ou du destinataire invalide.' });
+      }
 
-        const result = await newChat.save();
-        if (!result) {
-            return res.status(500).json({ message: 'Erreur lors de la sauvegarde du chat.' });
-        }
+      const sender = await User.findById(senderId);
+      const receiver = await User.findById(receiverId);
 
-        res.status(200).json(result);
-    } catch (error) {
-        console.error('Erreur lors de la création du chat :', error);
-        res.status(500).json({ error: 'Erreur lors de la création du chat.', details: error.message });
-    }
+      if (!sender || !receiver) {
+          return res.status(400).json({ message: 'Utilisateur non trouvé pour l\'expéditeur ou le destinataire.' });
+      }
+
+      const existingChat = await ChatModel.findOne({
+          members: { $all: [senderId, receiverId] },
+      });
+
+      if (existingChat) {
+          return res.status(400).json({ message: 'Un chat entre ces utilisateurs existe déjà.' });
+      }
+
+      const newChat = new ChatModel({
+          members: [senderId, receiverId],
+      });
+
+      const result = await newChat.save();
+      res.status(200).json(result);
+  } catch (error) {
+      console.error('Erreur lors de la création du chat :', error);
+      res.status(500).json({ error: 'Erreur lors de la création du chat.', details: error.message });
+  }
 };
-
 export const userChats = async (req, res) => {
   try {
     // Vérifier que l'utilisateur existe

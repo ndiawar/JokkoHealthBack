@@ -1,6 +1,6 @@
 import ProfileModel from '../../models/user/profileModel.js';
 import CrudController from '../base/crudController.js';
-import { validationResult } from 'express-validator'; // IMPORT UNIQUE
+import { validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
@@ -9,17 +9,17 @@ import mjml from 'mjml';
 import emailService from '../../services/email/emailService.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import BlacklistedToken from '../../models/auth/blacklistedToken.js'; // Import du modèle
+import BlacklistedToken from '../../models/auth/blacklistedToken.js';
 import User from '../../models/user/userModel.js';
-import Patient from '../../models/user/patientModel.js'; // Import du modèle Patient
-import MedicalRecord from '../../models/medical/medicalModel.js'; // Import du modèle MedicalRecord
+import Patient from '../../models/user/patientModel.js';
+import MedicalRecord from '../../models/medical/medicalModel.js';
+import upload from '../../config/multerConfig.js';  // Importer la configuration Multer
 
 // Utilisation de fileURLToPath pour obtenir le répertoire actuel
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 class UserController extends CrudController {
-
     constructor() {
         super(User);
         this.updateUserState = this.updateUserState.bind(this);
@@ -116,10 +116,36 @@ class UserController extends CrudController {
                 await newUser.save();
             }
 
-            // Envoi de l'email de bienvenue
+            // Charger le fichier MJML depuis le répertoire local
+            const mjmlFilePath = path.join(__dirname, '../../../src/templates/emails/welcomes/welcome.mjml');
+            const mjmlContent = fs.readFileSync(mjmlFilePath, 'utf8'); // Lire le fichier MJML
+
+            // Compiler le contenu MJML en HTML
+            const { html } = mjml(mjmlContent);
+
+            // Remplacer les variables dynamiques dans le contenu HTML
+            const htmlContent = html
+                .replace('{{prenom}}', prenom)
+                .replace('{{nom}}', nom)
+                .replace('{{username}}', username)
+                .replace('{{email}}', email)
+                .replace('{{loginLink}}', 'http://localhost:3000/login'); // Remplacer par l'URL de votre page de connexion
+
+            // Envoi de l'email de bienvenue avec les informations de connexion
             const subject = 'Bienvenue sur JokkoHealth!';
-            const htmlContent = "<html><body><p>Bienvenue sur JokkoHealth!</p></body></html>";  // Exemple simplifié
-            await emailService.sendEmail({ to: email, subject, html: htmlContent });
+
+            // Envoi de l'email via votre service Email
+            await emailService.sendEmail({
+                to: email,
+                subject,
+                text: '',
+                html: htmlContent
+            });
+
+            // // Envoi de l'email de bienvenue
+            // const subject = 'Bienvenue sur JokkoHealth!';
+            // const htmlContent = "<html><body><p>Bienvenue sur JokkoHealth!</p></body></html>";  // Exemple simplifié
+            // await emailService.sendEmail({ to: email, subject, html: htmlContent });
 
             return res.status(201).json({
                 message: "Utilisateur créé avec succès. Un email de bienvenue a été envoyé.",
@@ -316,34 +342,33 @@ class UserController extends CrudController {
         return this.updateUserState(req, res, [req.params.id], 'unarchive');
     }
     
+    // 📌 Déconnexion d'un utilisateur
+    async logout(req, res) {
+        try {
+            const token = req.cookies.jwt; // Récupérer le token JWT à partir des cookies
+            if (!token) {
+                return res.status(400).json({ message: "Token manquant" });
+            }
 
-// 📌 Déconnexion d'un utilisateur
-async logout(req, res) {
-    try {
-        const token = req.cookies.jwt; // Récupérer le token JWT à partir des cookies
-        if (!token) {
-            return res.status(400).json({ message: "Token manquant" });
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            if (!decoded) {
+                return res.status(400).json({ message: "Token invalide" });
+            }
+
+            // Ajouter le token à la liste noire
+            const blacklistedToken = new BlacklistedToken({
+                token,
+                expiresAt: new Date(decoded.exp * 1000)
+            });
+
+            await blacklistedToken.save();
+            res.clearCookie('jwt'); // Supprimer le cookie JWT
+            return res.status(200).json({ message: "Déconnexion réussie" });
+        } catch (error) {
+            console.error("Erreur lors de la déconnexion:", error);
+            return res.status(500).json({ message: "Erreur serveur lors de la déconnexion", error: error.message });
         }
-
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (!decoded) {
-            return res.status(400).json({ message: "Token invalide" });
-        }
-
-        // Ajouter le token à la liste noire
-        const blacklistedToken = new BlacklistedToken({
-            token,
-            expiresAt: new Date(decoded.exp * 1000)
-        });
-
-        await blacklistedToken.save();
-        res.clearCookie('jwt'); // Supprimer le cookie JWT
-        return res.status(200).json({ message: "Déconnexion réussie" });
-    } catch (error) {
-        console.error("Erreur lors de la déconnexion:", error);
-        return res.status(500).json({ message: "Erreur serveur lors de la déconnexion", error: error.message });
     }
-}
 
     // 📌 Récupération des informations d'un utilisateur connecté
     async getMe(req, res) {
@@ -354,6 +379,7 @@ async logout(req, res) {
             res.status(500).json({ message: 'Erreur serveur' });
         }
     }
+
 }
 
 // Exporte la classe directement
