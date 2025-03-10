@@ -20,7 +20,7 @@ const __dirname = path.dirname(new URL(import.meta.url).pathname);
 dotenv.config();
 
 const app = express();
-const port = 3001; // Assurez-vous que le port est correct
+const port = 3001;
 
 connectDB();
 
@@ -35,6 +35,10 @@ app.use(express.json());
 app.use('/public', express.static(path.join(__dirname, '../public')));
 
 setupSwagger(app);
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
 app.use('/api', routes);
 
@@ -42,42 +46,45 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });
-
+app.post('/api/sensors/register', (req, res) => {
+  const sensorData = req.body;
+  console.log("Données reçues du capteur :", sensorData);
+  // Traitez les données ici, par exemple, enregistrez-les dans une base de données
+  res.status(200).send("Données reçues avec succès");
+});
 const server = createServer(app);
-
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000", // Assurez-vous que cela correspond à votre client React
+    origin: "*", // Accepter toutes les origines pour le test
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   },
 });
 
-let activeUsers = [];
+let socketClients = {};
 
 io.on("connection", (socket) => {
-  socket.on("new-user-add", (newUserId) => {
-    if (!activeUsers.some((user) => user.userId === newUserId)) {
-      activeUsers.push({ userId: newUserId, socketId: socket.id });
-      console.log("New User Connected", activeUsers);
-    }
-    io.emit("get-users", activeUsers);
-  });
+    console.log("Un utilisateur est connecté.");
 
-  socket.on("disconnect", () => {
-    activeUsers = activeUsers.filter((user) => user.socketId !== socket.id);
-    console.log("User Disconnected", activeUsers);
-    io.emit("get-users", activeUsers);
-  });
+    socket.on("new-user-add", (newUserId) => {
+        socketClients[newUserId] = socket;
+        console.log(`Utilisateur ${newUserId} ajouté aux clients.`);
+    });
 
-  socket.on("send-message", (data) => {
-    const { receiverId, senderId, text, chatId } = data;
-    const user = activeUsers.find((user) => user.userId === receiverId);
-    if (user) {
-      io.to(user.socketId).emit("receive-message", { senderId, text, chatId });
-    }
-  });
+    socket.on("disconnect", () => {
+        Object.keys(socketClients).forEach((userId) => {
+            if (socketClients[userId] === socket) {
+                delete socketClients[userId];
+                console.log(`Utilisateur ${userId} déconnecté.`);
+            }
+        });
+    });
+
+    socket.on("message", (data) => {
+        console.log("Message reçu :", data);
+        // Traitez le message ici
+    });
 });
 
 server.listen(port, () => {

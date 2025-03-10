@@ -143,7 +143,32 @@ async list(req, res) {
     }
 // Lister les demandes de participation
  // Lister les demandes de participation
-  
+ async listDemandesParticipation(req, res) {
+    try {
+        const appointmentId = req.params.id;
+
+        // Vérifiez que l'ID est un ObjectId valide
+        if (!mongoose.Types.ObjectId.isValid(appointmentId)) {
+            return res.status(400).json({ message: 'ID de rendez-vous invalide.' });
+        }
+
+        const appointment = await Appointment.findById(appointmentId)
+            .populate({
+                path: 'patientId',
+                select: 'nom prenom'
+            });
+
+        if (!appointment || !appointment.demandeParticipe) {
+            return res.status(404).json({ message: 'Aucune demande de participation trouvée pour ce rendez-vous.' });
+        }
+
+        return res.status(200).json(appointment);
+    } catch (error) {
+        console.error('Erreur lors de la récupération des demandes de participation:', error);
+        return res.status(500).json({ error: 'Erreur lors de la récupération des demandes de participation.' });
+    }
+}
+    
 // Gérer l'acceptation ou le rejet de la demande
 async gestionDemande(req, res) {
     const { statutDemande } = req.body; // 'accepté' ou 'rejeté'

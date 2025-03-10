@@ -12,7 +12,7 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['info', 'warning', 'error'],
+        enum: ['info', 'warning', 'error', 'sensor'], // ✅ Ajout de "sensor"
         required: true
     },
     isRead: {
@@ -25,6 +25,8 @@ const notificationSchema = new mongoose.Schema({
     }
 });
 
+
 const Notification = mongoose.model('Notification', notificationSchema);
 
+// ✅ Utiliser "export default" au lieu de "module.exports"
 export default Notification;

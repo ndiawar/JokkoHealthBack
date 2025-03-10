@@ -1,6 +1,20 @@
 import express from 'express';
-import { getUserNotifications, createNotification, markAsRead, disableNotification } from '../../controllers/notification/NotificationController.js'; 
+import { getAllNotifications, getUserNotifications, createNotification, markAsRead, disableNotification } from '../../controllers/notification/NotificationController.js';
 const router = express.Router();
+
+/**
+ * @swagger
+ * /api/notifications:
+ *   get:
+ *     summary: Récupérer toutes les notifications
+ *     description: Récupère toutes les notifications disponibles.
+ *     tags:
+ *       - Notifications
+ *     responses:
+ *       200:
+ *         description: Liste de toutes les notifications
+ */
+router.get('/', getAllNotifications);
 
 /**
  * @swagger
@@ -8,7 +22,7 @@ const router = express.Router();
  *   get:
  *     summary: Récupérer les notifications d'un utilisateur
  *     description: Récupère toutes les notifications d'un utilisateur donné.
- *     tags: 
+ *     tags:
  *       - Notifications
  *     parameters:
  *       - in: path
@@ -23,7 +37,7 @@ const router = express.Router();
  *       404:
  *         description: Utilisateur non trouvé
  */
-router.get('/:userId', getUserNotifications); 
+router.get('/:userId', getUserNotifications);
 
 /**
  * @swagger
@@ -31,7 +45,7 @@ router.get('/:userId', getUserNotifications);
  *   put:
  *     summary: Marquer une notification comme lue
  *     description: Change l'état de la notification pour la marquer comme lue.
- *     tags: 
+ *     tags:
  *       - Notifications
  *     parameters:
  *       - in: path
@@ -46,7 +60,7 @@ router.get('/:userId', getUserNotifications);
  *       404:
  *         description: Notification non trouvée
  */
-router.put('/:notificationId/read', markAsRead); 
+router.put('/:notificationId/read', markAsRead);
 
 /**
  * @swagger
@@ -54,7 +68,7 @@ router.put('/:notificationId/read', markAsRead);
  *   put:
  *     summary: Désactiver une notification
  *     description: Désactive une notification donnée.
- *     tags: 
+ *     tags:
  *       - Notifications
  *     parameters:
  *       - in: path
@@ -69,7 +83,7 @@ router.put('/:notificationId/read', markAsRead);
  *       404:
  *         description: Notification non trouvée
  */
-router.put('/:notificationId/disable', disableNotification); 
+router.put('/:notificationId/disable', disableNotification);
 
 /**
  * @swagger
@@ -77,7 +91,7 @@ router.put('/:notificationId/disable', disableNotification);
  *   post:
  *     summary: Créer une nouvelle notification
  *     description: Crée une notification pour un utilisateur spécifique.
- *     tags: 
+ *     tags:
  *       - Notifications
  *     requestBody:
  *       required: true
@@ -97,6 +111,6 @@ router.put('/:notificationId/disable', disableNotification);
  *       201:
  *         description: Notification créée avec succès
  */
-router.post('/', createNotification); 
+router.post('/', createNotification);
 
 export default router;
