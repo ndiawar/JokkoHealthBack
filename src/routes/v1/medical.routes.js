@@ -7,7 +7,8 @@ import {
     // getMedicalRecordByUser // Importez la nouvelle fonction
 } from '../../controllers/medical/MedicalController.js';
 import { authenticate } from '../../middlewares/auth/authenticate.js';
-import logMiddleware from '../../middlewares/logs/logMiddleware.js';
+import logAction from '../../middlewares/logs/logMiddleware.js';
+
 
 const router = express.Router();
 
@@ -30,7 +31,7 @@ const router = express.Router();
  *       500:
  *         description: Erreur interne du serveur
  */
-router.get('/', authenticate, logMiddleware, getAllMedicalRecords);
+router.get('/', authenticate, logAction, getAllMedicalRecords);
 
 /**
  * @swagger
@@ -44,7 +45,7 @@ router.get('/', authenticate, logMiddleware, getAllMedicalRecords);
  *       404:
  *         description: Dossier médical non trouvé
  */
-router.get('/me', authenticate, logMiddleware, getMedicalRecordByUser);
+router.get('/me', authenticate, logAction, getMedicalRecordByUser);
 
 
 /**
@@ -79,7 +80,7 @@ router.get('/me', authenticate, logMiddleware, getMedicalRecordByUser);
  *       404:
  *         description: Dossier médical non trouvé
  */
-router.put('/:recordId', authenticate, logMiddleware, updateMedicalRecord);
+router.put('/:recordId', authenticate, logAction, updateMedicalRecord);
 
 /**
  * @swagger
@@ -102,6 +103,6 @@ router.put('/:recordId', authenticate, logMiddleware, updateMedicalRecord);
  *       500:
  *         description: Erreur serveur
  */
-router.delete('/:recordId', authenticate, logMiddleware, deleteMedicalRecord);
+router.delete('/:recordId', authenticate, logAction, deleteMedicalRecord);
 
 export default router;

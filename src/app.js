@@ -14,6 +14,7 @@ import setupSwagger from './config/swagger.js';
 import jwt from 'jsonwebtoken';
 import { connectDB } from './config/database.js';
 import corsConfig from './middlewares/security/cors.js';
+import { logActivity } from './middlewares/HistoriqueMiddleware.js'; // ✅ Ajout du middleware pour les logs
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
@@ -21,7 +22,6 @@ dotenv.config();
 
 const app = express();
 const port = 3001; // Assurez-vous que le port est correct
-
 
 connectDB();
 
@@ -32,18 +32,18 @@ app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
+
+// ✅ Intégration du middleware pour enregistrer les actions des utilisateurs
+app.use(logActivity);  
+
 // Servir le dossier 'public' statiquement
-// app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
-// app.use('/public', express.static(path.join(__dirname, '../public')));
-
-
 app.use('/uploads', express.static('public/uploads'));
-
 
 setupSwagger(app);
 
 app.use('/api', routes);
 
+// Gestion des erreurs globales
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });

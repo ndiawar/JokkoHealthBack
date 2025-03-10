@@ -6,6 +6,7 @@ import {
 } from '../../controllers/users/filterUser.js';
 import { authenticate } from '../../middlewares/auth/authenticate.js'; // Middleware d'authentification
 import roleCheck from '../../middlewares/auth/roleCheck.js'; // Middleware de vérification des rôles
+import logAction from '../../middlewares/logs/logMiddleware.js';
 
 const router = express.Router();
 
@@ -66,7 +67,7 @@ const router = express.Router();
  *                   type: string
  *                   example: "Erreur de connexion à la base de données"
  */
-router.get('/total-by-role', authenticate, roleCheck(['SuperAdmin']), getTotalUsersByRole);
+router.get('/total-by-role', logAction, authenticate, roleCheck(['SuperAdmin']), getTotalUsersByRole);
 
 /**
  * @swagger
@@ -133,7 +134,7 @@ router.get('/total-by-role', authenticate, roleCheck(['SuperAdmin']), getTotalUs
  *                   type: string
  *                   example: "Erreur de connexion à la base de données"
  */
-router.get('/filter-patients', authenticate, roleCheck(['SuperAdmin', 'Medecin']), filterPatients);
+router.get('/filter-patients', logAction, authenticate, roleCheck(['SuperAdmin', 'Medecin']), filterPatients);
 
 /**
  * @swagger
@@ -182,6 +183,6 @@ router.get('/filter-patients', authenticate, roleCheck(['SuperAdmin', 'Medecin']
  *                   type: string
  *                   example: "Erreur de connexion à la base de données"
  */ 
-router.get('/filter-patients-medecins-monthly', filterPatientsAndMedecinsForMonthlyGraph);
+router.get('/filter-patients-medecins-monthly', logAction, filterPatientsAndMedecinsForMonthlyGraph);
 
 export default router;

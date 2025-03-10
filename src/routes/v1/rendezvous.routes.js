@@ -3,6 +3,7 @@
 import express from 'express';
 import { getAppointments, getAllAppointments, getAcceptedAppointmentsForPatient, getAcceptedAppointmentRequests, getPendingAppointmentRequests, createRendezVous, getAvailableAppointments, requestAppointment, handleAppointmentRequest } from '../../controllers/appointment/rendezVousController.js';  // Make sure the controller path is correct
 import { authenticate } from '../../middlewares/auth/authenticate.js';
+import logAction from '../../middlewares/logs/logMiddleware.js';
 
 const router = express.Router();
 
@@ -42,22 +43,22 @@ const router = express.Router();
  */
 
 // Endpoint to create a rendezvous
-router.post('/create', authenticate, createRendezVous);  // Add authentication middleware if necessary
+router.post('/create', logAction, authenticate, createRendezVous);  // Add authentication middleware if necessary
 
-router.get('/patient/available', authenticate, getAvailableAppointments); // Nouvelle route
+router.get('/patient/available', logAction, authenticate, getAvailableAppointments); // Nouvelle route
 
-router.put('/patient/:appointmentId/demande', authenticate, requestAppointment); // Nouvelle route
+router.put('/patient/:appointmentId/demande', logAction, authenticate, requestAppointment); // Nouvelle route
 
-router.put('/medecin/:appointmentId/reponse', authenticate, handleAppointmentRequest); // Nouvelle route
+router.put('/medecin/:appointmentId/reponse', logAction, authenticate, handleAppointmentRequest); // Nouvelle route
 
-router.get('/', authenticate, getAppointments); // Nouvelle route
+router.get('/', logAction, authenticate, getAppointments); // Nouvelle route
 
 // Ajouter la nouvelle route dans ton router
-router.get('/pending-requests', authenticate, getPendingAppointmentRequests);
+router.get('/pending-requests', logAction, authenticate, getPendingAppointmentRequests);
 
-router.get('/accepted-participation', authenticate, getAcceptedAppointmentRequests);
+router.get('/accepted-participation', logAction, authenticate, getAcceptedAppointmentRequests);
 
-router.get('/accepted-for-patient', authenticate, getAcceptedAppointmentsForPatient);
-router.get('/tous', authenticate, getAllAppointments);
+router.get('/accepted-for-patient', logAction, authenticate, getAcceptedAppointmentsForPatient);
+router.get('/tous', logAction, authenticate, getAllAppointments);
 
 export default router;

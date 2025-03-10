@@ -275,19 +275,20 @@ export const getAcceptedAppointmentsForPatient = async (req, res) => {
 // 9. Récupérer tous les rendez-vous
 export const getAllAppointments = async (req, res) => {
   try {
-      // Récupérer tous les rendez-vous
+      // Récupérer tous les rendez-vous avec les informations du patient et du médecin
       const appointments = await Appointment.find()
           .populate('patientId', 'nom prenom') // Récupérer les informations du patient
           .populate('doctorId', 'nom prenom'); // Récupérer les informations du médecin
 
       // Vérifier si des rendez-vous ont été trouvés
-      if (appointments.length === 0) {
+      if (!appointments || appointments.length === 0) {
           return res.status(404).json({ message: 'Aucun rendez-vous trouvé.' });
       }
 
       // Retourner les rendez-vous trouvés
       res.status(200).json(appointments);
   } catch (error) {
+      console.error('Erreur lors de la récupération des rendez-vous:', error);
       res.status(500).json({ message: 'Erreur lors de la récupération des rendez-vous', error: error.message });
   }
 };

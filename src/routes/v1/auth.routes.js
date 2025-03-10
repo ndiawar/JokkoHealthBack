@@ -3,6 +3,7 @@ import { validateLogin, validateRegistration } from '../../middlewares/validatio
 import { authenticate } from '../../middlewares/auth/authenticate.js'; // Importer le middleware d'authentification
 import PasswordController from '../../controllers/auth/passwordController.js'; // Importer le contrôleur de mot de passe
 import { passwordValidator } from '../../middlewares/validation/passwordValidation.js'; // Importer les validations de mot de passe
+import logAction from '../../middlewares/logs/logMiddleware.js';
 
 const router = express.Router(); // Créer un routeur express
 
@@ -41,7 +42,7 @@ const router = express.Router(); // Créer un routeur express
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.post('/forgot-password', passwordValidator.forgotPassword, PasswordController.forgotPassword); // Route pour demander la réinitialisation du mot de passe
+router.post('/forgot-password', logAction, passwordValidator.forgotPassword, PasswordController.forgotPassword); // Route pour demander la réinitialisation du mot de passe
 
 /**
  * @swagger
@@ -89,7 +90,7 @@ router.post('/forgot-password', passwordValidator.forgotPassword, PasswordContro
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.post('/reset-password', passwordValidator.resetPassword, PasswordController.resetPassword); // Route pour réinitialiser le mot de passe
+router.post('/reset-password', logAction, passwordValidator.resetPassword, PasswordController.resetPassword); // Route pour réinitialiser le mot de passe
 
 /**
  * @swagger
@@ -130,7 +131,7 @@ router.post('/reset-password', passwordValidator.resetPassword, PasswordControll
  *       401:
  *         description: Non authentifié.
  */
-router.post('/change-password', authenticate, passwordValidator.changePassword, PasswordController.changePassword); // Route pour changer le mot de passe
+router.post('/change-password', logAction, authenticate, passwordValidator.changePassword, PasswordController.changePassword); // Route pour changer le mot de passe
 
 // Protected routes
 router.get('/profile', authenticate, (req, res) => {
