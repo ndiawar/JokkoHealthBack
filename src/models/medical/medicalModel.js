@@ -39,8 +39,16 @@ const medicalRecordSchema = new mongoose.Schema({
         type: String,
         enum: ['stable', 'en traitement', 'hospitalisé', 'sortie', 'urgent'],  // Valeurs possibles pour le status
         default: 'stable'  // Valeur par défaut
-    }
-}, { timestamps: false });
+    },
+    createdAt: { 
+        type: Date, 
+        default: Date.now // La date de création est définie par défaut sur la date actuelle
+    },
+    updatedAt: { 
+        type: Date, 
+        default: Date.now // La date de mise à jour est définie par défaut sur la date actuelle
+    },
+}, { timestamps: false }); // Ne pas ajouter de timestamps automatiques (à gérer manuellement dans le seeder)
 
 const MedicalRecord = mongoose.model('MedicalRecord', medicalRecordSchema);
 

@@ -24,6 +24,7 @@
     "docker:down": "docker-compose down"
   },
   "dependencies": {
+    "@faker-js/faker": "^9.6.0",
     "agenda": "^5.0.0",
     "apidoc": "^0.29.0",
     "aws-sdk": "^2.1498.0",

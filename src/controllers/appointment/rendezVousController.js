@@ -292,3 +292,56 @@ export const getAllAppointments = async (req, res) => {
       res.status(500).json({ message: 'Erreur lors de la récupération des rendez-vous', error: error.message });
   }
 };
+
+// Méthode pour obtenir les statistiques de création de rendez-vous par mois pour le médecin connecté
+export const getAppointmentsStatsByMonthForMedecin = async (req, res) => {
+  try {
+      const { role, id: userId } = req.user;
+
+      // Vérifier si l'utilisateur est un médecin
+      if (role !== 'Medecin') {
+          return handleErrorResponse(res, 403, 'Accès refusé : Seuls les médecins peuvent accéder à ces statistiques.');
+      }
+
+      // Agrégation pour compter les rendez-vous créés par mois pour le médecin connecté
+      const stats = await Appointment.aggregate([
+          {
+              $match: { doctorId: new mongoose.Types.ObjectId(userId) } // Filtrer par l'ID du médecin connecté
+          },
+          {
+              $project: {
+                  date: { $toDate: "$date" }, // Convertir `date` en type Date
+              }
+          },
+          {
+              $group: {
+                  _id: {
+                      year: { $year: "$date" }, // Extraire l'année de la date du rendez-vous
+                      month: { $month: "$date" } // Extraire le mois de la date du rendez-vous
+                  },
+                  count: { $sum: 1 } // Compter le nombre de rendez-vous
+              }
+          },
+          {
+              $project: {
+                  _id: 0, // Exclure l'ID du groupe
+                  year: "$_id.year",
+                  month: "$_id.month",
+                  count: 1 // Inclure le compteur
+              }
+          },
+          {
+              $sort: { year: 1, month: 1 } // Trier par année et mois
+          }
+      ]);
+
+      if (!stats || stats.length === 0) {
+          return handleErrorResponse(res, 404, 'Aucune statistique trouvée pour ce médecin.');
+      }
+
+      return res.status(200).json({ success: true, stats });
+  } catch (error) {
+      console.error("Erreur lors de la récupération des statistiques :", error);
+      handleErrorResponse(res, 500, "Erreur lors de la récupération des statistiques.", error.message);
+  }
+};

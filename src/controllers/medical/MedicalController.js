@@ -1,6 +1,7 @@
 import MedicalRecord from '../../models/medical/medicalModel.js';
 import { validationResult } from 'express-validator';
 import User from '../../models/user/userModel.js';
+import mongoose from 'mongoose';
 
 
 
@@ -205,3 +206,104 @@ import User from '../../models/user/userModel.js';
             handleErrorResponse(res, 500, "Erreur lors de la suppression du dossier médical.", error.message);
         }
     }
+
+    // Méthode pour obtenir les statistiques de création de dossiers médicaux par mois pour le médecin connecté
+    export const getMedicalRecordsStatsByMonthForMedecin = async (req, res) => {
+        try {
+            const { role, id: userId } = req.user;
+    
+            // Vérifier si l'utilisateur est un médecin
+            if (role !== 'Medecin') {
+                return handleErrorResponse(res, 403, 'Accès refusé : Seuls les médecins peuvent accéder à ces statistiques.');
+            }
+    
+            // Agrégation pour compter les dossiers médicaux créés par mois pour le médecin connecté
+            const stats = await MedicalRecord.aggregate([
+                {
+                    $match: { medecinId: new mongoose.Types.ObjectId(userId) } // Filtrer par l'ID du médecin connecté
+                },
+                {
+                    $project: {
+                        createdAt: { $toDate: "$createdAt" } // Convertir `createdAt` en type Date
+                    }
+                },
+                {
+                    $group: {
+                        _id: {
+                            year: { $year: "$createdAt" }, // Extraire l'année de création
+                            month: { $month: "$createdAt" } // Extraire le mois de création
+                        },
+                        count: { $sum: 1 } // Compter le nombre de dossiers
+                    }
+                },
+                {
+                    $project: {
+                        _id: 0, // Exclure l'ID du groupe
+                        year: "$_id.year",
+                        month: "$_id.month",
+                        count: 1 // Inclure le compteur
+                    }
+                },
+                {
+                    $sort: { year: 1, month: 1 } // Trier par année et mois
+                }
+            ]);
+    
+            if (!stats || stats.length === 0) {
+                return handleErrorResponse(res, 404, 'Aucune statistique trouvée pour ce médecin.');
+            }
+    
+            return res.status(200).json({ success: true, stats });
+        } catch (error) {
+            console.error("Erreur lors de la récupération des statistiques :", error);
+            handleErrorResponse(res, 500, "Erreur lors de la récupération des statistiques.", error.message);
+        }
+    };
+    
+    
+    // Récupérer les derniers dossiers médicaux pour un médecin connecté
+    export const getRecentMedicalRecords = async (req, res) => {
+        try {
+            const { role, id: userId } = req.user;
+            const page = parseInt(req.query.page) || 1; // Page actuelle, par défaut à 1
+            const limit = 3; // Nombre d'éléments par page
+            const skip = (page - 1) * limit; // Calcul de l'offset pour la pagination
+    
+            // Vérifier si l'utilisateur est un médecin
+            if (role !== 'Medecin') {
+                return handleErrorResponse(res, 403, 'Accès refusé : Seuls les médecins peuvent accéder à ces dossiers.');
+            }
+    
+            // Récupérer les dossiers médicaux associés au médecin connecté et les trier par date de création
+            const records = await MedicalRecord.find({ medecinId: userId })
+                .sort({ createdAt: -1 }) // Trier par date de création (les plus récents en premier)
+                .skip(skip) // Appliquer le skip pour la pagination
+                .limit(limit) // Appliquer la limite pour la pagination
+                .populate('patientId', 'nom prenom email telephone') // Récupérer le nom, prénom, téléphone du patient
+                .populate('medecinId', 'nom prenom email telephone'); // Récupérer le nom, prénom, email, téléphone du médecin
+    
+            // Compter le total des dossiers médicaux
+            const totalRecords = await MedicalRecord.countDocuments({ medecinId: userId });
+    
+            const totalPages = Math.ceil(totalRecords / limit); // Calcul du nombre total de pages
+    
+            if (!records || records.length === 0) {
+                return handleErrorResponse(res, 404, 'Aucun dossier médical trouvé pour ce médecin.');
+            }
+    
+            // Renvoyer les dossiers médicaux avec les informations de pagination
+            return res.status(200).json({
+                success: true,
+                records,
+                pagination: {
+                    totalRecords,
+                    totalPages,
+                    currentPage: page
+                }
+            });
+        } catch (error) {
+            console.error("Erreur lors de la récupération des dossiers médicaux :", error);
+            handleErrorResponse(res, 500, "Erreur lors de la récupération des dossiers médicaux.", error.message);
+        }
+    };
+    

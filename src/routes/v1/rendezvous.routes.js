@@ -1,7 +1,18 @@
 // src/routes/v1/rendezvous.route.js
 
 import express from 'express';
-import { getAppointments, getAllAppointments, getAcceptedAppointmentsForPatient, getAcceptedAppointmentRequests, getPendingAppointmentRequests, createRendezVous, getAvailableAppointments, requestAppointment, handleAppointmentRequest } from '../../controllers/appointment/rendezVousController.js';  // Make sure the controller path is correct
+import { 
+        getAppointments, 
+        getAllAppointments, 
+        getAcceptedAppointmentsForPatient, 
+        getAcceptedAppointmentRequests, 
+        getPendingAppointmentRequests, 
+        createRendezVous, 
+        getAvailableAppointments, 
+        requestAppointment, 
+        handleAppointmentRequest,
+        getAppointmentsStatsByMonthForMedecin
+    } from '../../controllers/appointment/rendezVousController.js';  // Make sure the controller path is correct
 import { authenticate } from '../../middlewares/auth/authenticate.js';
 import logAction from '../../middlewares/logs/logMiddleware.js';
 
@@ -59,6 +70,45 @@ router.get('/pending-requests', logAction, authenticate, getPendingAppointmentRe
 router.get('/accepted-participation', logAction, authenticate, getAcceptedAppointmentRequests);
 
 router.get('/accepted-for-patient', logAction, authenticate, getAcceptedAppointmentsForPatient);
+
 router.get('/tous', logAction, authenticate, getAllAppointments);
+/**
+ * @swagger
+ * /appointments/stats/month:
+ *   get:
+ *     summary: Récupérer les statistiques des rendez-vous par mois pour le médecin connecté
+ *     tags: [Rendez-vous]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Statistiques des rendez-vous par mois
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 stats:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       year:
+ *                         type: integer
+ *                       month:
+ *                         type: integer
+ *                       count:
+ *                         type: integer
+ *       403:
+ *         description: Accès refusé - Seuls les médecins peuvent accéder à ces statistiques
+ *       404:
+ *         description: Aucune statistique trouvée pour ce médecin
+ *       500:
+ *         description: Erreur lors de la récupération des statistiques
+ */
+router.get('/stats/month', logAction, authenticate, getAppointmentsStatsByMonthForMedecin); // Nouvelle route pour les statistiques par mois
+
 
 export default router;

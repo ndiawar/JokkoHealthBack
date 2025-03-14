@@ -380,6 +380,58 @@ class UserController extends CrudController {
         }
     }
 
+     // Méthode pour obtenir les stats des patients
+     async getPatientStats(req, res) {
+        try {
+            const { newPatientsCount, oldPatientsCount } = await User.getPatientCounts();
+    
+            // Exemple de nombres de patients du mois précédent (peut être calculé ou récupéré d'une base de données)
+            const previousNewPatientsCount = 100;  // Nombre de nouveaux patients du mois précédent (exemple)
+            const previousOldPatientsCount = 80;   // Nombre d'anciens patients du mois précédent (exemple)
+    
+            console.log('New Patients Count:', newPatientsCount);
+            console.log('Old Patients Count:', oldPatientsCount);
+    
+            // Calcul des pourcentages de changement pour les nouveaux et anciens patients
+            let newPatientsPercentage = 0;
+            let oldPatientsPercentage = 0;
+    
+            // Gestion du cas où le mois précédent a 0 nouveaux patients
+            if (previousNewPatientsCount === 0) {
+                if (newPatientsCount > 0) {
+                    newPatientsPercentage = 100;  // Si c'est le premier mois avec des patients, le pourcentage est 100%
+                }
+            } else {
+                // Calcul du pourcentage de variation des nouveaux patients
+                newPatientsPercentage = ((newPatientsCount - previousNewPatientsCount) / previousNewPatientsCount) * 100;
+            }
+    
+            // Calcul du pourcentage pour les anciens patients
+            if (previousOldPatientsCount === 0) {
+                if (oldPatientsCount > 0) {
+                    oldPatientsPercentage = 100;  // Si c'est le premier mois avec des anciens patients, le pourcentage est 100%
+                }
+            } else {
+                oldPatientsPercentage = ((oldPatientsCount - previousOldPatientsCount) / previousOldPatientsCount) * 100;
+            }
+    
+            console.log('New Patients Percentage:', newPatientsPercentage);
+            console.log('Old Patients Percentage:', oldPatientsPercentage);
+    
+            // Renvoyer les résultats au client
+            return res.status(200).json({
+                success: true,
+                newPatientsCount,
+                oldPatientsCount,
+                newPatientsPercentage: newPatientsPercentage.toFixed(2),  // Limité à 2 décimales
+                oldPatientsPercentage: oldPatientsPercentage.toFixed(2),
+            });
+        } catch (error) {
+            console.error("Erreur lors de la récupération des statistiques des patients:", error);
+            return res.status(500).json({ success: false, message: "Erreur lors de la récupération des statistiques des patients." });
+        }
+    }
+    
 }
 
 // Exporte la classe directement

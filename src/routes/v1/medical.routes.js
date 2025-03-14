@@ -4,6 +4,8 @@ import {
     getMedicalRecordByUser,
     updateMedicalRecord,
     deleteMedicalRecord,
+    getMedicalRecordsStatsByMonthForMedecin,
+    getRecentMedicalRecords
     // getMedicalRecordByUser // Importez la nouvelle fonction
 } from '../../controllers/medical/MedicalController.js';
 import { authenticate } from '../../middlewares/auth/authenticate.js';
@@ -105,4 +107,8 @@ router.put('/:recordId', authenticate, logAction, updateMedicalRecord);
  */
 router.delete('/:recordId', authenticate, logAction, deleteMedicalRecord);
 
+
+router.get('/medical-records/stats-by-month-for-medecin', authenticate, getMedicalRecordsStatsByMonthForMedecin);
+
+router.get('/recent', authenticate, getRecentMedicalRecords);
 export default router;

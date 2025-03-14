@@ -306,6 +306,35 @@ router.delete('/:id', UserController.delete.bind(UserController));
 
 /**
  * @swagger
+ * /users/stats/patients:
+ *   get:
+ *     summary: Obtenir les statistiques des patients
+ *     description: Récupère le nombre de nouveaux patients et le nombre de patients anciens.
+ *     tags: [Utilisateurs]
+ *     responses:
+ *       200:
+ *         description: Statistiques des patients récupérées avec succès.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Indique si l'opération a réussi.
+ *                 newPatientsCount:
+ *                   type: integer
+ *                   description: Le nombre de nouveaux patients.
+ *                 oldPatientsCount:
+ *                   type: integer
+ *                   description: Le nombre de vieux patients.
+ *       500:
+ *         description: Erreur lors de la récupération des statistiques des patients.
+ */
+router.get('/stats/patients', authenticate, UserController.getPatientStats);
+
+/**
+ * @swagger
  * tags:
  *   name: Authentification
  *   description: Gestion des utilisateurs
