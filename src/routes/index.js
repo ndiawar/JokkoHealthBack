@@ -35,7 +35,7 @@ router.use('/medical', MedicalRoutes);
 router.use('/logs', logRoutes);
 router.use('/rendezvous', rendezvousRoutes);
 router.use('/sensors', SensorRoutes);
-router.use('/sensorPoul', SensorPoulRoutes);
+router.use('/sensorPatient', SensorPoulRoutes);
 
 
 

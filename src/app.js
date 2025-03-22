@@ -52,18 +52,7 @@ app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });
-app.post('/api/sensors/register', (req, res) => {
-  const sensorData = req.body;
-  console.log("Données reçues du capteur :", sensorData);
-  // Traitez les données ici, par exemple, enregistrez-les dans une base de données
-  res.status(200).send("Données reçues avec succès");
-});
-app.post('/api/sensorPoul', (req, res) => {
-  const sensorData = req.body;
-  console.log("Données reçues du capteur :", sensorData);
-  // Traitez les données ici, par exemple, enregistrez-les dans une base de données
-  res.status(200).send("Données reçues avec succès");
-});
+
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
