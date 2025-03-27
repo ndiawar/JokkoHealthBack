@@ -6,9 +6,9 @@ const sensorSchema = new mongoose.Schema({
     unique: true,   // Assurez-vous que chaque capteur ait un identifiant unique
     required: true 
   },
-  user: { 
+  medicalRecord: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User',  // Référence à l'utilisateur auquel appartient ce capteur
+    ref: 'MedicalRecord',  // Référence au dossier médical auquel appartient ce capteur
     required: true 
   },
   mac: {

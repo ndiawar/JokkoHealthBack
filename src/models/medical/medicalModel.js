@@ -15,7 +15,7 @@ const medicalRecordSchema = new mongoose.Schema({
         type: Number,
         required: false
     },
-    poids: {
+    poids: { 
         type: Number,
         required: false
     },

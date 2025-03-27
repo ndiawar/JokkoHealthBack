@@ -5,7 +5,9 @@ import {
     updateMedicalRecord,
     deleteMedicalRecord,
     getMedicalRecordsStatsByMonthForMedecin,
-    getRecentMedicalRecords
+    getRecentMedicalRecords,
+    getMedicalRecordByPatientId,
+    getMedicalRecordById
     // getMedicalRecordByUser // Importez la nouvelle fonction
 } from '../../controllers/medical/MedicalController.js';
 import { authenticate } from '../../middlewares/auth/authenticate.js';
@@ -108,7 +110,63 @@ router.put('/:recordId', authenticate, logAction, updateMedicalRecord);
 router.delete('/:recordId', authenticate, logAction, deleteMedicalRecord);
 
 
+/**
+* @swagger
+* /api/medical/recent:
+*   get:
+*     tags: [Dossiers médicaux]
+*     summary: Récupérer les dossiers médicaux récents
+*     responses:
+*       200:
+*         description: Dossiers médicaux récents récupérés avec succès
+*       500:
+*         description: Erreur interne du serveur
+*/
+router.get('/recent', authenticate, getRecentMedicalRecords);
+
+/**
+* @swagger
+* /api/medical/{recordId}:
+*   get:
+*     tags: [Dossiers médicaux]
+*     summary: Récupérer un dossier médical par ID
+*     parameters:
+*       - in: path
+*         name: recordId
+*         required: true
+*         description: L'ID du dossier médical à récupérer
+*         schema:
+*           type: string
+*     responses:
+*       200:
+*         description: Dossier médical récupéré avec succès
+*       404:
+*         description: Dossier médical non trouvé
+*/
+router.get('/:recordId', authenticate, logAction, getMedicalRecordById);
+
+
+/**
+* @swagger
+* /api/medical/patient/{patientId}:
+*   get:
+*     tags: [Dossiers médicaux]
+*     summary: Récupérer un dossier médical par patient ID
+*     parameters:
+*       - in: path
+*         name: patientId
+*         required: true
+*         description: L'ID du patient dont le dossier médical doit être récupéré
+*         schema:
+*           type: string
+*     responses:
+*       200:
+*         description: Dossier médical récupéré avec succès
+*       404:
+*         description: Dossier médical non trouvé
+*/
+router.get('/patient/:patientId', authenticate, logAction, getMedicalRecordByPatientId);
+
 router.get('/medical-records/stats-by-month-for-medecin', authenticate, getMedicalRecordsStatsByMonthForMedecin);
 
-router.get('/recent', authenticate, getRecentMedicalRecords);
 export default router;

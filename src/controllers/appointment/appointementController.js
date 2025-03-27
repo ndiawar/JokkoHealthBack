@@ -48,8 +48,8 @@ class AppointmentController {
                                                 .set('minute', appointment.heure_debut.split(':')[1])
                                                 .toDate(),
                 end: moment(appointment.date).set('hour', appointment.heure_fin.split(':')[0])
-                                              .set('minute', appointment.heure_fin.split(':')[1])
-                                              .toDate(),
+                                            .set('minute', appointment.heure_fin.split(':')[1])
+                                            .toDate(),
                 specialiste: appointment.specialiste,
                 doctorId: appointment.doctorId ? appointment.doctorId._id : null,  // Vérifier si doctorId est présent
                 patientId: appointment.patientId ? appointment.patientId._id : null,  // Vérifier si patientId est présent
@@ -63,7 +63,6 @@ class AppointmentController {
             res.status(500).json({ message: 'Erreur serveur lors de la récupération des rendez-vous.' });
         }
     }
-    
     
     // Créer un rendez-vous
     async create(req, res) {
@@ -122,7 +121,6 @@ class AppointmentController {
             return res.status(500).json({ error: 'Erreur lors de la création du rendez-vous.' });
         }
     }
-
 
     // Demander la participation à un rendez-vous
     async demanderParticipation(req, res) {
@@ -236,7 +234,7 @@ class AppointmentController {
             return res.status(500).json({ error: 'Erreur lors de la récupération du rendez-vous.' });
         }
     }
-
+    
     // Afficher l'historique des rendez-vous d'un patient
     async getHistoriquePatient(req, res) {
         try {
