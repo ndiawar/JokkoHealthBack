@@ -210,6 +210,7 @@ class UserController extends CrudController {
 
             return res.status(200).json({
                 message: 'Connexion réussie',
+                token, // ⬅️ Ajouter le token ici
                 user: {
                     id: user._id,
                     nom: user.nom,
@@ -217,7 +218,7 @@ class UserController extends CrudController {
                     email: user.email,
                     role: user.role
                 }
-            });
+            });              
 
         } catch (error) {
             console.error('Erreur lors de la connexion de l\'utilisateur:', error);

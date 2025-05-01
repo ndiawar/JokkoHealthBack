@@ -16,6 +16,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 class PasswordController {
+    // Méthode privée pour vérifier le mot de passe actuel
+    _verifyPassword = async (user, password) => {
+        return await bcrypt.compare(password, user.motDePasse);
+    }
+
     // 📌 Demande de réinitialisation de mot de passe (mot de passe oublié)
     async forgotPassword(req, res) {
         const { email } = req.body; // Récupérer l'email du corps de la requête
@@ -152,62 +157,234 @@ class PasswordController {
         }
     }
 
-    async changePassword(req, res) {
-        const { currentPassword, newPassword } = req.body; // Récupérer l'ancien et le nouveau mot de passe
-        const userId = req.user.id; // Récupérer l'id de l'utilisateur authentifié
-    
-        if (!currentPassword || !newPassword) {
-            return res.status(400).json({ message: "Ancien et nouveau mot de passe requis" });
+    changePassword = async (req, res) => {
+        console.log("Début de changePassword");
+        const { currentPassword, newPassword, confirmPassword } = req.body;
+        const userId = req.user?.id;
+
+        console.log("Données reçues:", { userId, currentPassword: currentPassword ? "présent" : "absent", newPassword: newPassword ? "présent" : "absent", confirmPassword: confirmPassword ? "présent" : "absent" });
+
+        // Validation des champs requis
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            console.log("Champs manquants:", {
+                currentPassword: !currentPassword,
+                newPassword: !newPassword,
+                confirmPassword: !confirmPassword
+            });
+            return res.status(400).json({ 
+                message: "Tous les champs sont requis",
+                details: {
+                    currentPassword: !currentPassword ? "L'ancien mot de passe est requis" : null,
+                    newPassword: !newPassword ? "Le nouveau mot de passe est requis" : null,
+                    confirmPassword: !confirmPassword ? "La confirmation du mot de passe est requise" : null
+                }
+            });
         }
-    
+
+        // Validation de la correspondance des mots de passe
+        if (newPassword !== confirmPassword) {
+            console.log("Les mots de passe ne correspondent pas");
+            return res.status(400).json({ 
+                message: "Les nouveaux mots de passe ne correspondent pas" 
+            });
+        }
+
         try {
-            const user = await User.findById(userId); // Trouver l'utilisateur par id
+            console.log("Recherche de l'utilisateur avec l'ID:", userId);
+            const user = await User.findById(userId);
             if (!user) {
+                console.log("Utilisateur non trouvé");
                 return res.status(404).json({ message: "Utilisateur non trouvé" });
             }
-    
-            const isMatch = await bcrypt.compare(currentPassword, user.motDePasse); // Comparer l'ancien mot de passe
-            if (!isMatch) {
-                return res.status(401).json({ message: "L'ancien mot de passe est incorrect" });
+
+            // Vérification des tentatives de changement de mot de passe
+            const timeDifference = Date.now() - user.lastPasswordChangeAttempt;
+            const timeLimit = 3600000; // 1 heure en millisecondes
+            const maxAttempts = 5;
+
+            console.log("Vérification des tentatives:", {
+                attempts: user.passwordChangeAttempts,
+                timeDifference,
+                timeLimit,
+                maxAttempts
+            });
+
+            if (user.passwordChangeAttempts >= maxAttempts && timeDifference < timeLimit) {
+                console.log("Trop de tentatives");
+                return res.status(429).json({ 
+                    message: `Trop de tentatives. Veuillez réessayer dans ${Math.floor((timeLimit - timeDifference) / 60000)} minutes.` 
+                });
             }
-    
-            user.motDePasse = await bcrypt.hash(newPassword, 10); // Hacher le nouveau mot de passe
-            await user.save(); // Sauvegarder l'utilisateur
-    
-            // Envoyer un email de confirmation
+
+            // Vérification du mot de passe actuel
+            console.log("Vérification du mot de passe actuel");
+            const isValid = await this._verifyPassword(user, currentPassword);
+            console.log("Résultat de la vérification:", isValid);
+
+            if (!isValid) {
+                console.log("Mot de passe actuel incorrect");
+                user.passwordChangeAttempts += 1;
+                user.lastPasswordChangeAttempt = Date.now();
+                await user.save();
+                
+                return res.status(401).json({ 
+                    message: "L'ancien mot de passe est incorrect",
+                    attemptsRemaining: maxAttempts - user.passwordChangeAttempts
+                });
+            }
+
+            // Vérification que le nouveau mot de passe est différent de l'ancien
+            if (currentPassword === newPassword) {
+                console.log("Le nouveau mot de passe est identique à l'ancien");
+                return res.status(400).json({ 
+                    message: "Le nouveau mot de passe doit être différent de l'ancien" 
+                });
+            }
+
+            // Validation de la force du nouveau mot de passe
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+            if (!passwordRegex.test(newPassword)) {
+                console.log("Le nouveau mot de passe ne respecte pas les critères de force");
+                return res.status(400).json({
+                    message: "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial"
+                });
+            }
+
+            // Mise à jour du mot de passe
+            console.log("Hachage du nouveau mot de passe");
+            user.motDePasse = await bcrypt.hash(newPassword, 12); // Augmentation du coût de hachage
+            user.passwordChangeAttempts = 0;
+            user.lastPasswordChangeAttempt = Date.now();
+            user.passwordChangedAt = Date.now();
+            console.log("Sauvegarde de l'utilisateur");
+            await user.save();
+
+            // Récupération et invalidation de tous les tokens existants
+            console.log("Vérification du token JWT");
+            const token = req.cookies.jwt;
+            if (token) {
+                try {
+                    console.log("Vérification et décodage du token");
+                    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                    if (decoded) {
+                        console.log("Création du token blacklisté");
+                        const blacklistedToken = new BlacklistedToken({
+                            token,
+                            expiresAt: new Date(decoded.exp * 1000),
+                            reason: 'password_change'
+                        });
+                        await blacklistedToken.save();
+                    }
+                } catch (jwtError) {
+                    console.error("Erreur lors de la vérification du token:", jwtError);
+                }
+            }
+
+            // Envoi de l'email de confirmation
+            console.log("Préparation de l'email de confirmation");
+            const mjmlFilePath = path.join(__dirname, '../../../src/templates/emails/passwordChanged/passwordChanged.mjml');
+            const mjmlContent = fs.readFileSync(mjmlFilePath, 'utf8');
+            const { html } = mjml(mjmlContent);
+            const htmlContent = html
+                .replace('{{prenom}}', user.prenom)
+                .replace('{{nom}}', user.nom)
+                .replace('{{loginLink}}', 'http://localhost:3000/login');
+
+            console.log("Envoi de l'email");
             await emailService.sendEmail({
                 to: user.email,
                 subject: 'Confirmation du changement de mot de passe',
                 text: 'Votre mot de passe a été changé avec succès.',
-                html: '<p>Votre mot de passe a été changé avec succès.</p>'
+                html: htmlContent
             });
-    
-            // Déconnecter l'utilisateur
-            const token = req.cookies.jwt; // Récupérer le token JWT à partir des cookies
-            if (!token) {
-                return res.status(400).json({ message: "Token manquant" });
-            }
-    
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            if (!decoded) {
-                return res.status(400).json({ message: "Token invalide" });
-            }
-    
-            // Ajouter le token à la liste noire
-            const blacklistedToken = new BlacklistedToken({
-                token,
-                expiresAt: new Date(decoded.exp * 1000)
+
+            // Nettoyage des cookies
+            console.log("Nettoyage des cookies");
+            res.clearCookie('jwt');
+
+            console.log("Changement de mot de passe réussi");
+            return res.status(200).json({ 
+                message: "Mot de passe modifié avec succès. Vous avez été déconnecté.",
+                security: {
+                    passwordChangedAt: user.passwordChangedAt,
+                    nextPasswordChangeAllowed: new Date(Date.now() + timeLimit)
+                }
             });
-    
-            await blacklistedToken.save();
-            res.clearCookie('jwt'); // Supprimer le cookie JWT
-    
-            // Réponse de succès
-            return res.status(200).json({ message: "Mot de passe modifié avec succès. Vous avez été déconnecté." });
-    
+
         } catch (error) {
-            console.error("Erreur dans changePassword:", error);
-            return res.status(500).json({ message: "Erreur serveur" });
+            console.error("Erreur détaillée dans changePassword:", {
+                userId,
+                error: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            
+            if (error.name === 'JsonWebTokenError') {
+                return res.status(401).json({ message: "Token invalide" });
+            }
+            
+            return res.status(500).json({ 
+                message: "Une erreur est survenue lors du changement de mot de passe",
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    }
+
+    // 📌 Vérification du mot de passe actuel
+    verifyCurrentPassword = async (req, res) => {
+        console.log("Début de verifyCurrentPassword");
+        const { currentPassword } = req.body;
+        const userId = req.user?.id;
+
+        console.log("Données reçues:", { currentPassword, userId });
+
+        if (!currentPassword) {
+            console.log("Mot de passe actuel manquant");
+            return res.status(400).json({ 
+                message: "Le mot de passe actuel est requis",
+                isValid: false
+            });
+        }
+
+        if (!userId) {
+            console.log("ID utilisateur manquant dans la requête");
+            return res.status(401).json({ 
+                message: "Utilisateur non authentifié",
+                isValid: false
+            });
+        }
+
+        try {
+            console.log("Recherche de l'utilisateur avec l'ID:", userId);
+            const user = await User.findById(userId);
+            if (!user) {
+                console.log("Utilisateur non trouvé");
+                return res.status(404).json({ 
+                    message: "Utilisateur non trouvé",
+                    isValid: false
+                });
+            }
+
+            console.log("Vérification du mot de passe");
+            const isValid = await this._verifyPassword(user, currentPassword);
+            console.log("Résultat de la vérification:", isValid);
+            
+            return res.status(200).json({ 
+                message: isValid ? "Mot de passe correct" : "Mot de passe incorrect",
+                isValid
+            });
+
+        } catch (error) {
+            console.error("Erreur détaillée dans verifyCurrentPassword:", {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            return res.status(500).json({ 
+                message: "Erreur serveur",
+                isValid: false,
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
         }
     }
 }

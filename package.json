@@ -15,7 +15,6 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "prepare": "husky install",
     "db:seed": "node scripts/seed.js",
     "db:migrate": "node scripts/migrate.js",
     "doc": "jsdoc -c jsdoc.config.json",

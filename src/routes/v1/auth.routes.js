@@ -133,6 +133,41 @@ router.post('/reset-password', logAction, passwordValidator.resetPassword, Passw
  */
 router.post('/change-password', logAction, authenticate, passwordValidator.changePassword, PasswordController.changePassword); // Route pour changer le mot de passe
 
+/**
+ * @swagger
+ * /auth/verify-current-password:
+ *   post:
+ *     summary: Vérification du mot de passe actuel
+ *     description: Vérifie si le mot de passe actuel est correct.
+ *     tags: [Gestion Mot de passe]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 example: "ancienMDP"
+ *             required:
+ *               - currentPassword
+ *     responses:
+ *       200:
+ *         description: Mot de passe correct.
+ *       400:
+ *         description: Données invalides ou ancien mot de passe incorrect.
+ *       401:
+ *         description: Non authentifié.
+ *       404:
+ *         description: Utilisateur non trouvé.
+ *       500:
+ *         description: Erreur interne du serveur.
+ */
+router.post('/verify-current-password', logAction, authenticate, passwordValidator.verifyCurrentPassword, PasswordController.verifyCurrentPassword);
+
 // Protected routes
 router.get('/profile', authenticate, (req, res) => {
     res.send('Profile route'); // Route protégée pour le profil
