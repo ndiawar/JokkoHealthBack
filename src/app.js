@@ -15,6 +15,7 @@ import jwt from 'jsonwebtoken';
 import { connectDB } from './config/database.js';
 import corsConfig from './middlewares/security/cors.js';
 import { logActivity } from './middlewares/HistoriqueMiddleware.js'; // ✅ Ajout du middleware pour les logs
+import { errorHandler } from './middlewares/error/errorHandler.js';
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 
@@ -47,11 +48,8 @@ app.use((req, res, next) => {
 
 app.use('/api', routes);
 
-// Gestion des erreurs globales
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
-});
+// Error handling middleware
+app.use(errorHandler);
 
 const server = createServer(app);
 const io = new Server(server, {

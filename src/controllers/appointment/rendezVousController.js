@@ -3,345 +3,238 @@ import User from '../../models/user/userModel.js';
 import MedicalRecord from '../../models/medical/medicalModel.js';
 import Appointment from '../../models/appointment/appointement.js';
 import mongoose from 'mongoose';
+import { AppointmentService } from '../../services/appointmentService.js';
+import { AppError } from '../../middlewares/error/errorHandler.js';
 
 
 const router = express.Router();
 
 // 1. Créer un rendez-vous (par un médecin)
-export const createRendezVous = async (req, res) => {
+export const createRendezVous = async (req, res, next) => {
     try {
         const { date, heure_debut, heure_fin, specialiste } = req.body;
-        const doctorId = req.user._id; // ID du médecin extrait du token JWT
+        const doctorId = req.user._id;
 
-        // Vérifier si l'utilisateur est bien un médecin
-        const doctor = await User.findById(doctorId);
-        if (!doctor || doctor.role !== 'Medecin') {
-            return res.status(403).json({ message: 'Seuls les médecins peuvent créer des rendez-vous' });
+        if (req.user.role !== 'Medecin') {
+            throw new AppError('Seuls les médecins peuvent créer des rendez-vous', 403);
         }
 
-        const newAppointment = new Appointment({
+        const appointment = await AppointmentService.createAppointment({
             date,
             heure_debut,
             heure_fin,
             specialiste,
-            doctorId,
+            doctorId
         });
 
-        await newAppointment.save();
-        res.status(201).json({ message: 'Rendez-vous créé avec succès', appointment: newAppointment });
+        res.status(201).json({ message: 'Rendez-vous créé avec succès', appointment });
     } catch (error) {
-        res.status(500).json({ message: 'Erreur lors de la création du rendez-vous', error: error.message });
+        next(error);
     }
 };
 
 // 2. Récupérer les rendez-vous disponibles pour un patient (basé sur son médecin)
-export const getAvailableAppointments = async (req, res) => {
-  try {
-    const patientId = req.user._id; // ID du patient extrait du token JWT
+export const getAvailableAppointments = async (req, res, next) => {
+    try {
+        const patientId = req.user._id;
+        const medicalRecord = await MedicalRecord.findOne({ patientId });
+        
+        if (!medicalRecord) {
+            throw new AppError('Dossier médical non trouvé', 404);
+        }
 
-    // Trouver le dossier médical du patient pour obtenir l'ID du médecin
-    const medicalRecord = await MedicalRecord.findOne({ patientId });
-    if (!medicalRecord) {
-      return res.status(404).json({ message: 'Dossier médical non trouvé' });
+        const appointments = await AppointmentService.getAvailableAppointments(medicalRecord.medecinId);
+        res.status(200).json(appointments);
+    } catch (error) {
+        next(error);
     }
-
-    const doctorId = medicalRecord.medecinId;
-
-    // Trouver les rendez-vous disponibles pour ce médecin
-    const appointments = await Appointment.find({
-      doctorId,
-      patientId: null, // Seuls les rendez-vous sans patient
-      statutDemande: 'en attente', // Filtrer par statut "en attente"
-      demandeParticipe: false, // Filtrer par demandeParticipe: false
-    });
-
-    res.status(200).json(appointments);
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la récupération des rendez-vous', error: error.message });
-  }
 };
 
 // 3. Demander à participer à un rendez-vous (par un patient)
-export const requestAppointment = async (req, res) => {
+export const requestAppointment = async (req, res, next) => {
     try {
         const { appointmentId } = req.params;
-        const patientId = req.user._id; // ID du patient extrait du token JWT
+        const { patientId } = req.body;
 
-        // Vérifier si le patient a un dossier médical avec ce médecin
+        if (!patientId) {
+            throw new AppError('ID du patient manquant', 400);
+        }
+
         const medicalRecord = await MedicalRecord.findOne({ patientId });
         if (!medicalRecord) {
-            return res.status(404).json({ message: 'Dossier médical non trouvé' });
+            throw new AppError('Dossier médical non trouvé', 404);
         }
 
-        const appointment = await Appointment.findById(appointmentId);
-        if (!appointment) {
-            return res.status(404).json({ message: 'Rendez-vous non trouvé' });
-        }
-
-        // Vérifier si le rendez-vous est bien géré par le médecin du patient
-        if (appointment.doctorId.toString() !== medicalRecord.medecinId.toString()) {
-            return res.status(403).json({ message: 'Vous ne pouvez pas demander ce rendez-vous' });
-        }
-
-        // Vérifier si le rendez-vous est disponible
-        if (appointment.patientId) {
-            return res.status(400).json({ message: 'Ce rendez-vous est déjà pris' });
-        }
-
-        // Mettre à jour le rendez-vous avec la demande du patient
-        appointment.demandeParticipe = true;
-        appointment.statutDemande = 'en attente';
-        await appointment.save();
-
+        const appointment = await AppointmentService.requestAppointment(appointmentId, patientId);
         res.status(200).json({ message: 'Demande de participation envoyée', appointment });
     } catch (error) {
-        res.status(500).json({ message: 'Erreur lors de la demande de participation', error: error.message });
+        next(error);
     }
 };
 
 // 4. Accepter ou rejeter une demande de participation (par un médecin)
-export const handleAppointmentRequest = async (req, res) => {
+export const handleAppointmentRequest = async (req, res, next) => {
     try {
-      const { appointmentId } = req.params;
-      const { statutDemande } = req.body; // 'accepté' ou 'rejeté'
-      const doctorId = req.user._id; // ID du médecin extrait du token JWT
-  
-      // Vérifier si l'utilisateur est bien un médecin
-      const doctor = await User.findById(doctorId);
-      if (!doctor || doctor.role !== 'Medecin') {
-        return res.status(403).json({ message: 'Seuls les médecins peuvent gérer les demandes de rendez-vous' });
-      }
-  
-      // Trouver le rendez-vous
-      const appointment = await Appointment.findById(appointmentId);
-      if (!appointment) {
-        return res.status(404).json({ message: 'Rendez-vous non trouvé' });
-      }
+        console.log('Début handleAppointmentRequest:', {
+            params: req.params,
+            body: req.body,
+            user: req.user
+        });
 
-      // Vérifier si le rendez-vous a un statut en attente et si la demande de participation est activée
-      if (appointment.statutDemande !== 'en attente' || !appointment.demandeParticipe) {
-        return res.status(400).json({ message: 'Ce rendez-vous ne peut pas être modifié car la demande n\'est pas en attente ou n\'est pas validée pour participation' });
-      }
-  
-      // Vérifier si le médecin est bien celui qui a créé le rendez-vous
-      if (appointment.doctorId.toString() !== doctorId.toString()) {
-        return res.status(403).json({ message: 'Vous n\'êtes pas autorisé à gérer ce rendez-vous' });
-      }
-  
-      // Mettre à jour le statut de la demande
-      appointment.statutDemande = statutDemande;
-      if (statutDemande === 'accepté') {
-        appointment.patientId = req.body.patientId; // Associer le patient au rendez-vous
-      }
-  
-      await appointment.save();
-      res.status(200).json({ message: `Demande ${statutDemande}`, appointment });
+        const { appointmentId } = req.params;
+        const { statutDemande, patientId } = req.body;
+
+        console.log('Paramètres extraits:', {
+            appointmentId,
+            statutDemande,
+            patientId
+        });
+
+        // Vérification des paramètres requis
+        if (!appointmentId) {
+            throw new AppError('ID de rendez-vous manquant', 400);
+        }
+        if (!statutDemande) {
+            throw new AppError('Statut de demande manquant', 400);
+        }
+        if (!patientId) {
+            throw new AppError('ID de patient manquant', 400);
+        }
+
+        // Vérification du rôle de l'utilisateur
+        if (req.user.role !== 'Medecin') {
+            throw new AppError('Seuls les médecins peuvent gérer les demandes de rendez-vous', 403);
+        }
+
+        // Vérification du format du statut
+        if (!['accepté', 'refusé'].includes(statutDemande)) {
+            throw new AppError('Statut de demande invalide. Doit être "accepté" ou "refusé"', 400);
+        }
+
+        console.log('Paramètres validés, appel du service avec:', {
+            appointmentId,
+            statutDemande,
+            patientId
+        });
+
+        // Appel au service pour gérer la demande
+        const updatedAppointment = await AppointmentService.handleAppointmentRequest(
+            appointmentId,
+            statutDemande,
+            patientId
+        );
+
+        console.log('Rendez-vous mis à jour avec succès:', updatedAppointment);
+
+        res.status(200).json({
+            message: 'Demande de rendez-vous traitée avec succès',
+            appointment: updatedAppointment
+        });
     } catch (error) {
-      res.status(500).json({ message: 'Erreur lors de la gestion de la demande', error: error.message });
+        console.error('Erreur dans handleAppointmentRequest:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
+        next(error);
     }
 };
 
 
   // 5. Récupérer tous les rendez-vous (pour un médecin ou un patient)
-export const getAppointments = async (req, res) => {
+export const getAppointments = async (req, res, next) => {
     try {
-      const userId = req.user._id; // ID de l'utilisateur connecté
-      const userRole = req.user.role; // Rôle de l'utilisateur connecté
-  
-      let appointments;
-  
-      if (userRole === 'Medecin') {
-        // Récupérer les rendez-vous créés par ce médecin
-        appointments = await Appointment.find({ doctorId: userId })
-          .populate('patientId', 'nom prenom') // Récupérer les informations du patient
-          .populate('doctorId', 'nom prenom'); // Récupérer les informations du médecin
-      } else if (userRole === 'Patient') {
-        // Récupérer les rendez-vous associés à ce patient
-        appointments = await Appointment.find({ patientId: userId })
-          .populate('doctorId', 'nom prenom'); // Récupérer les informations du médecin
-      } else {
-        return res.status(403).json({ message: 'Accès non autorisé' });
-      }
-  
-      res.status(200).json(appointments);
+        const appointments = await AppointmentService.getAppointmentsByUser(
+            req.user._id,
+            req.user.role
+        );
+        res.status(200).json(appointments);
     } catch (error) {
-      res.status(500).json({ message: 'Erreur lors de la récupération des rendez-vous', error: error.message });
+        next(error);
     }
-  };
+};
 
 // 6. Récupérer les rendez-vous avec une demande de participation en attente
-export const getPendingAppointmentRequests = async (req, res) => {
+export const getPendingAppointmentRequests = async (req, res, next) => {
     try {
-      const userId = req.user._id; // ID de l'utilisateur connecté
-      const userRole = req.user.role; // Rôle de l'utilisateur connecté
-  
-      let appointments;
-  
-      if (userRole === 'Medecin') {
-        // Si l'utilisateur est un médecin, on récupère les rendez-vous pour lesquels une demande de participation est en attente
-        appointments = await Appointment.find({
-          doctorId: userId,
-          statutDemande: 'en attente', // Seulement les rendez-vous où la demande est en attente
-          demandeParticipe: true, // Et où la demande de participation est active
-        })
-          .populate('patientId', 'nom prenom telephone email') // Récupérer les informations du patient : nom, prénom, téléphone, email
-          .populate('doctorId', 'nom prenom'); // Récupérer les informations du médecin
-      } else if (userRole === 'Patient') {
-        // Si l'utilisateur est un patient, on récupère les rendez-vous associés à ce patient et où la demande est en attente
-        appointments = await Appointment.find({
-          patientId: userId,
-          statutDemande: 'en attente', // Seulement les rendez-vous où la demande est en attente
-          demandeParticipe: true, // Et où la demande de participation est active
-        })
-          .populate('doctorId', 'nom prenom'); // Récupérer les informations du médecin
-      } else {
-        return res.status(403).json({ message: 'Accès non autorisé' });
-      }
-  
-      res.status(200).json(appointments);
+        const appointments = await AppointmentService.getPendingAppointmentRequests(
+            req.user._id,
+            req.user.role
+        );
+        res.status(200).json(appointments);
     } catch (error) {
-      res.status(500).json({ message: 'Erreur lors de la récupération des rendez-vous avec demande en attente', error: error.message });
+        next(error);
     }
 };
 
 // 7. Récupérer les rendez-vous acceptés avec une demande de participation active
-export const getAcceptedAppointmentRequests = async (req, res) => {
+export const getAcceptedAppointmentRequests = async (req, res, next) => {
     try {
-      const userId = req.user._id; // ID de l'utilisateur connecté
-      const userRole = req.user.role; // Rôle de l'utilisateur connecté
-  
-      let appointments;
-  
-      if (userRole === 'Medecin') {
-        // Si l'utilisateur est un médecin, on récupère les rendez-vous acceptés et avec une demande de participation active
-        appointments = await Appointment.find({
-          doctorId: userId,
-          statutDemande: 'accepté', // Seulement les rendez-vous où la demande est acceptée
-          demandeParticipe: true, // Et où la demande de participation est active
-        })
-          .populate('patientId', 'nom prenom telephone email dateDeNaissance adresse') // Récupérer toutes les informations du patient
-          .populate('doctorId', 'nom prenom') // Récupérer les informations du médecin
-          .select('date heure_debut heure_fin specialiste statutDemande demandeParticipe createdAt updatedAt'); // Sélectionner uniquement les champs nécessaires du rendez-vous
-      } else if (userRole === 'Patient') {
-        // Si l'utilisateur est un patient, on récupère les rendez-vous associés à ce patient et où la demande est acceptée
-        appointments = await Appointment.find({
-          patientId: userId,
-          statutDemande: 'accepté', // Seulement les rendez-vous où la demande est acceptée
-          demandeParticipe: true, // Et où la demande de participation est active
-        })
-          .populate('doctorId', 'nom prenom') // Récupérer les informations du médecin
-          .select('date heure_debut heure_fin specialiste statutDemande demandeParticipe createdAt updatedAt'); // Sélectionner uniquement les champs nécessaires du rendez-vous
-      } else {
-        return res.status(403).json({ message: 'Accès non autorisé' });
-      }
-  
-      res.status(200).json(appointments);
+        const appointments = await AppointmentService.getAcceptedAppointmentRequests(
+            req.user._id,
+            req.user.role
+        );
+        res.status(200).json(appointments);
     } catch (error) {
-      res.status(500).json({ message: 'Erreur lors de la récupération des rendez-vous acceptés', error: error.message });
+        next(error);
     }
-  };
+};
   
 // 8. Récupérer les rendez-vous acceptés pour un patient avec une demande de participation active
-export const getAcceptedAppointmentsForPatient = async (req, res) => {
-  try {
-    const userId = req.user._id;  // Récupérer l'ID du patient à partir du token JWT (req.user)
-    const userRole = req.user.role; // Rôle de l'utilisateur connecté
+export const getAcceptedAppointmentsForPatient = async (req, res, next) => {
+    try {
+        console.log('Rôle de l\'utilisateur:', req.user.role);
+        console.log('ID du patient:', req.user._id);
 
-    // Vérification du rôle de l'utilisateur (doit être patient)
-    if (userRole !== 'Patient') {
-      return res.status(403).json({ message: 'Accès non autorisé. Seul un patient peut accéder à ses rendez-vous.' });
+        if (req.user.role !== 'Patient') {
+            throw new AppError('Accès non autorisé. Seul un patient peut accéder à ses rendez-vous.', 403);
+        }
+
+        const appointments = await AppointmentService.getAcceptedAppointmentsForPatient(req.user._id);
+        console.log('Rendez-vous trouvés:', appointments);
+        
+        if (appointments.length === 0) {
+            console.log('Aucun rendez-vous trouvé pour le patient');
+            return res.status(200).json([]); // Retourner un tableau vide au lieu de lancer une erreur
+        }
+
+        res.status(200).json(appointments);
+    } catch (error) {
+        console.error('Erreur dans getAcceptedAppointmentsForPatient:', error);
+        next(error);
     }
-
-    // Récupérer les rendez-vous acceptés associés à ce patient et où la demande de participation est active
-    const appointments = await Appointment.find({
-      patientId: userId,  // Utilisation de l'ID du patient récupéré dans le token JWT
-      statutDemande: 'accepté',  // Filtrer pour les rendez-vous acceptés
-      demandeParticipe: true,    // Filtrer pour les rendez-vous où la demande de participation est active
-    })
-      .populate('doctorId', 'nom prenom')  // Récupérer les informations du médecin
-      .select('date heure_debut heure_fin specialiste statutDemande demandeParticipe createdAt updatedAt'); // Sélectionner les champs nécessaires du rendez-vous
-
-    // Si aucun rendez-vous n'est trouvé
-    if (appointments.length === 0) {
-      return res.status(404).json({ message: 'Aucun rendez-vous accepté trouvé pour ce patient.' });
-    }
-
-    res.status(200).json(appointments);  // Renvoyer les rendez-vous acceptés
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la récupération des rendez-vous acceptés', error: error.message });
-  }
 };
 
 // 9. Récupérer tous les rendez-vous
-export const getAllAppointments = async (req, res) => {
-  try {
-      // Récupérer tous les rendez-vous avec les informations du patient et du médecin
-      const appointments = await Appointment.find()
-          .populate('patientId', 'nom prenom') // Récupérer les informations du patient
-          .populate('doctorId', 'nom prenom'); // Récupérer les informations du médecin
+export const getAllAppointments = async (req, res, next) => {
+    try {
+        const appointments = await AppointmentService.getAllAppointments();
+        
+        if (!appointments || appointments.length === 0) {
+            throw new AppError('Aucun rendez-vous trouvé.', 404);
+        }
 
-      // Vérifier si des rendez-vous ont été trouvés
-      if (!appointments || appointments.length === 0) {
-          return res.status(404).json({ message: 'Aucun rendez-vous trouvé.' });
-      }
-
-      // Retourner les rendez-vous trouvés
-      res.status(200).json(appointments);
-  } catch (error) {
-      console.error('Erreur lors de la récupération des rendez-vous:', error);
-      res.status(500).json({ message: 'Erreur lors de la récupération des rendez-vous', error: error.message });
-  }
+        res.status(200).json(appointments);
+    } catch (error) {
+        next(error);
+    }
 };
 
 // Méthode pour obtenir les statistiques de création de rendez-vous par mois pour le médecin connecté
-export const getAppointmentsStatsByMonthForMedecin = async (req, res) => {
-  try {
-      const { role, id: userId } = req.user;
+export const getAppointmentsStatsByMonthForMedecin = async (req, res, next) => {
+    try {
+        if (req.user.role !== 'Medecin') {
+            throw new AppError('Accès refusé : Seuls les médecins peuvent accéder à ces statistiques', 403);
+        }
 
-      // Vérifier si l'utilisateur est un médecin
-      if (role !== 'Medecin') {
-          return handleErrorResponse(res, 403, 'Accès refusé : Seuls les médecins peuvent accéder à ces statistiques.');
-      }
+        const stats = await AppointmentService.getAppointmentsStatsByMonth(req.user._id);
+        
+        if (!stats || stats.length === 0) {
+            throw new AppError('Aucune statistique trouvée pour ce médecin', 404);
+        }
 
-      // Agrégation pour compter les rendez-vous créés par mois pour le médecin connecté
-      const stats = await Appointment.aggregate([
-          {
-              $match: { doctorId: new mongoose.Types.ObjectId(userId) } // Filtrer par l'ID du médecin connecté
-          },
-          {
-              $project: {
-                  date: { $toDate: "$date" }, // Convertir `date` en type Date
-              }
-          },
-          {
-              $group: {
-                  _id: {
-                      year: { $year: "$date" }, // Extraire l'année de la date du rendez-vous
-                      month: { $month: "$date" } // Extraire le mois de la date du rendez-vous
-                  },
-                  count: { $sum: 1 } // Compter le nombre de rendez-vous
-              }
-          },
-          {
-              $project: {
-                  _id: 0, // Exclure l'ID du groupe
-                  year: "$_id.year",
-                  month: "$_id.month",
-                  count: 1 // Inclure le compteur
-              }
-          },
-          {
-              $sort: { year: 1, month: 1 } // Trier par année et mois
-          }
-      ]);
-
-      if (!stats || stats.length === 0) {
-          return handleErrorResponse(res, 404, 'Aucune statistique trouvée pour ce médecin.');
-      }
-
-      return res.status(200).json({ success: true, stats });
-  } catch (error) {
-      console.error("Erreur lors de la récupération des statistiques :", error);
-      handleErrorResponse(res, 500, "Erreur lors de la récupération des statistiques.", error.message);
-  }
+        res.status(200).json({ success: true, stats });
+    } catch (error) {
+        next(error);
+    }
 };
