@@ -8,6 +8,7 @@ import MedicalRecord from '../../models/medical/medicalModel.js'; // Importer le
 const activeConnections = new Map();
 let latestSensorData = null;
 
+
 export const assignSensorToUser = async (req, res) => {
   try {
     const { macAddress, recordId } = req.body; // Utiliser recordId au lieu de userId
@@ -259,35 +260,41 @@ export const getSensorDataForCurrentPatient = async (req, res) => {
   try {
     // Vérifier que l'utilisateur est bien authentifié
     if (!req.user) {
+      console.log("❌ Utilisateur non authentifié");
       return res.status(401).json({ message: "Utilisateur non authentifié" });
     }
 
-    const { id: userId, role } = req.user; // Récupérer l'ID de l'utilisateur connecté et son rôle
+    const { id: userId, role } = req.user;
+    console.log(`🔍 Recherche des données pour l'utilisateur: ${userId}, rôle: ${role}`);
 
     // Vérifier si l'utilisateur est un patient
     if (role !== 'Patient') {
+      console.log(`❌ Rôle invalide: ${role}, attendu: Patient`);
       return res.status(403).json({ message: "Accès refusé : Seul un patient peut accéder à ses données de capteur." });
     }
 
-    // Recherche du dossier médical en fonction de l'ID de l'utilisateur
+    // Recherche du dossier médical en fonction de l'ID de l'utilisateur (patientId)
     const medicalRecord = await MedicalRecord.findOne({ patientId: userId });
+    console.log(`📁 Dossier médical trouvé: ${medicalRecord ? 'Oui' : 'Non'}`);
 
     // Vérifier si le dossier médical existe pour ce patient
     if (!medicalRecord) {
-      console.log("❌ Dossier médical non trouvé pour l'utilisateur connecté.");
+      console.log(`❌ Dossier médical non trouvé pour l'utilisateur: ${userId}`);
       return res.status(404).json({ message: "Dossier médical non trouvé pour cet utilisateur." });
     }
 
     // Recherche du capteur associé à ce dossier médical
     const sensorData = await Sensor.findOne({ medicalRecord: medicalRecord._id });
+    console.log(`📡 Capteur trouvé: ${sensorData ? 'Oui' : 'Non'}`);
 
     // Vérifier si le capteur existe pour ce dossier médical
     if (!sensorData) {
-      console.log("❌ Capteur non trouvé pour le dossier médical de cet utilisateur.");
+      console.log(`❌ Capteur non trouvé pour le dossier médical: ${medicalRecord._id}`);
       return res.status(404).json({ message: "Capteur non trouvé pour ce dossier médical." });
     }
 
     // Répondre au client avec les données du capteur
+    console.log(`✅ Données du capteur récupérées avec succès pour l'utilisateur: ${userId}`);
     res.status(200).json({
       message: "Données du capteur récupérées avec succès",
       sensorData: {

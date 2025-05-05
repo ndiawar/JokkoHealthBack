@@ -29,4 +29,5 @@ router.get('/sensorPoul/:recordId', getSensorDataByRecordId);
 // Route pour récupérer les données du capteur pour l'utilisateur connecté
 router.get('/sensorPoul/currentUserSensorData', authenticate, getSensorDataForCurrentUser);
 
+
 export default router;
