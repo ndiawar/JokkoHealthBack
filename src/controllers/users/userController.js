@@ -14,6 +14,7 @@ import User from '../../models/user/userModel.js';
 import Patient from '../../models/user/patientModel.js';
 import MedicalRecord from '../../models/medical/medicalModel.js';
 import upload from '../../config/multerConfig.js';  // Importer la configuration Multer
+import NotificationService from '../../services/notificationService.js';
 
 // Utilisation de fileURLToPath pour obtenir le répertoire actuel
 const __filename = fileURLToPath(import.meta.url);
@@ -105,15 +106,56 @@ class UserController extends CrudController {
 
                 // Créer un nouveau dossier médical
                 const medicalRecord = new MedicalRecord({
-                    patientId: newUser._id, // Lier le dossier médical au patient
-                    medecinId: req.user.id,  // Lier le dossier médical au médecin authentifié
-                    statut: 'Stable'         // Statut par défaut
+                    patientId: newUser._id,
+                    medecinId: req.user.id,
+                    statut: 'Stable'
                 });
                 await medicalRecord.save();
 
                 // Lier le dossier médical au patient
                 newUser.medicalRecord = medicalRecord._id;
                 await newUser.save();
+
+                // Créer une notification pour le patient
+                try {
+                  await NotificationService.createNotification({
+                      userId: newUser._id,
+                      title: 'Nouveau Dossier Médical Créé',
+                      message: `Votre dossier médical a été créé par le Dr. ${req.user.nom} ${req.user.prenom}`,
+                      type: 'medical',
+                      priority: 'medium',
+                      data: {
+                          medicalRecordId: medicalRecord._id,
+                          doctorName: `${req.user.nom} ${req.user.prenom}`
+                      }
+                  });
+                } catch (err) {
+                  console.error('Erreur lors de la création de la notification patient:', err);
+                }
+
+                // Récupérer tous les SuperAdmin pour leur envoyer une notification
+                const superAdmins = await User.find({ role: 'SuperAdmin' });
+                // Créer une notification pour chaque SuperAdmin
+                for (const superAdmin of superAdmins) {
+                  try {
+                    await NotificationService.createNotification({
+                        userId: superAdmin._id,
+                        title: 'Nouveau Patient Inscrit',
+                        message: `Le Dr. ${req.user.nom} ${req.user.prenom} a créé un nouveau dossier médical pour ${newUser.nom} ${newUser.prenom}`,
+                        type: 'system',
+                        priority: 'low',
+                        data: {
+                            patientId: newUser._id,
+                            patientName: `${newUser.nom} ${newUser.prenom}`,
+                            doctorId: req.user.id,
+                            doctorName: `${req.user.nom} ${req.user.prenom}`,
+                            medicalRecordId: medicalRecord._id
+                        }
+                    });
+                  } catch (err) {
+                    console.error('Erreur lors de la notification SuperAdmin:', err);
+                  }
+                }
             }
 
             // Charger le fichier MJML depuis le répertoire local

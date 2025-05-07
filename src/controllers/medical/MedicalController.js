@@ -2,6 +2,7 @@ import MedicalRecord from '../../models/medical/medicalModel.js';
 import { validationResult } from 'express-validator';
 import User from '../../models/user/userModel.js';
 import mongoose from 'mongoose';
+import NotificationService from '../../services/notificationService.js';
 
 
 
@@ -121,23 +122,19 @@ import mongoose from 'mongoose';
             const updates = req.body;
             const { role, id: userId } = req.user;
 
-
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
                 return handleErrorResponse(res, 400, 'Données invalides', errors.array());
             }
 
-
             const record = await findMedicalRecord(recordId, res);
             if (!record) return;
-
 
             // Vérification des permissions
             if ((role === 'Medecin' && record.medecinId.toString() !== userId) ||
                 (role === 'Patient' && record.patientId.toString() !== userId)) {
                 return handleErrorResponse(res, 403, 'Accès refusé : Ce dossier ne vous appartient pas.');
             }
-
 
             const medicalUpdates = {};
             // Ne pas inclure patientId dans les mises à jour
@@ -148,10 +145,42 @@ import mongoose from 'mongoose';
             if (updates.hospitalisation !== undefined) medicalUpdates.hospitalisation = updates.hospitalisation;
             if (updates.antecedentsFamiliaux !== undefined) medicalUpdates.antecedentsFamiliaux = updates.antecedentsFamiliaux;
 
-
             // Mettez à jour seulement les champs nécessaires
             const updatedRecord = await MedicalRecord.findByIdAndUpdate(recordId, medicalUpdates, { new: true });
 
+            // Récupérer les informations du médecin et du patient pour les notifications
+            const [doctor, patient] = await Promise.all([
+                User.findById(record.medecinId),
+                User.findById(record.patientId)
+            ]);
+
+            // Créer une notification pour le patient
+            await NotificationService.createNotification({
+                userId: record.patientId,
+                title: 'Mise à Jour du Dossier Médical',
+                message: `Votre dossier médical a été mis à jour par le Dr. ${doctor.nom} ${doctor.prenom}`,
+                type: 'medical',
+                priority: 'medium',
+                data: {
+                    medicalRecordId: recordId,
+                    doctorName: `${doctor.nom} ${doctor.prenom}`,
+                    updatedFields: Object.keys(medicalUpdates)
+                }
+            });
+
+            // Créer une notification pour le médecin
+            await NotificationService.createNotification({
+                userId: record.medecinId,
+                title: 'Dossier Médical Mis à Jour',
+                message: `Le dossier médical de ${patient.nom} ${patient.prenom} a été mis à jour`,
+                type: 'medical',
+                priority: 'medium',
+                data: {
+                    medicalRecordId: recordId,
+                    patientName: `${patient.nom} ${patient.prenom}`,
+                    updatedFields: Object.keys(medicalUpdates)
+                }
+            });
 
             return res.status(200).json({ success: true, message: 'Dossier médical mis à jour avec succès.', record: updatedRecord });
         } catch (error) {
@@ -159,6 +188,7 @@ import mongoose from 'mongoose';
             handleErrorResponse(res, 500, "Erreur lors de la mise à jour du dossier médical.", error.message);
         }
     };
+    
     // Supprimer un dossier médical
     export const deleteMedicalRecord = async (req, res) => {
         try {

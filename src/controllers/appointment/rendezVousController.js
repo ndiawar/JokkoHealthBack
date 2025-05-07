@@ -5,6 +5,7 @@ import Appointment from '../../models/appointment/appointement.js';
 import mongoose from 'mongoose';
 import { AppointmentService } from '../../services/appointmentService.js';
 import { AppError } from '../../middlewares/error/errorHandler.js';
+import NotificationService from '../../services/notificationService.js';
 
 
 const router = express.Router();
@@ -19,6 +20,7 @@ export const createRendezVous = async (req, res, next) => {
             throw new AppError('Seuls les médecins peuvent créer des rendez-vous', 403);
         }
 
+        // Créer le rendez-vous
         const appointment = await AppointmentService.createAppointment({
             date,
             heure_debut,
@@ -26,6 +28,49 @@ export const createRendezVous = async (req, res, next) => {
             specialiste,
             doctorId
         });
+
+        // Récupérer tous les patients du médecin via les dossiers médicaux
+        const medicalRecords = await MedicalRecord.find({ medecinId: doctorId });
+        
+        // Créer une notification pour chaque patient
+        for (const record of medicalRecords) {
+            await NotificationService.createNotification({
+                userId: record.patientId,
+                title: 'Nouveau Rendez-vous Disponible',
+                message: `Le Dr. ${req.user.nom} ${req.user.prenom} a créé un nouveau rendez-vous le ${date} à ${heure_debut} pour ${specialiste}`,
+                type: 'appointment',
+                priority: 'medium',
+                data: {
+                    appointmentId: appointment._id,
+                    doctorId: doctorId,
+                    doctorName: `${req.user.nom} ${req.user.prenom}`,
+                    date,
+                    heure_debut,
+                    specialiste
+                }
+            });
+        }
+
+        // Récupérer tous les SuperAdmin pour notification
+        const superAdmins = await User.find({ role: 'SuperAdmin' });
+        
+        // Créer une notification pour chaque SuperAdmin
+        for (const superAdmin of superAdmins) {
+            await NotificationService.createNotification({
+                userId: superAdmin._id,
+                title: 'Nouveau Rendez-vous Créé',
+                message: `Le Dr. ${req.user.nom} ${req.user.prenom} a créé un nouveau rendez-vous pour le ${date} à ${heure_debut}`,
+                type: 'appointment',
+                priority: 'low',
+                data: {
+                    appointmentId: appointment._id,
+                    doctorId: doctorId,
+                    doctorName: `${req.user.nom} ${req.user.prenom}`,
+                    date,
+                    heure_debut
+                }
+            });
+        }
 
         res.status(201).json({ message: 'Rendez-vous créé avec succès', appointment });
     } catch (error) {
@@ -54,10 +99,10 @@ export const getAvailableAppointments = async (req, res, next) => {
 export const requestAppointment = async (req, res, next) => {
     try {
         const { appointmentId } = req.params;
-        const { patientId } = req.body;
+        const patientId = req.user._id;
 
-        if (!patientId) {
-            throw new AppError('ID du patient manquant', 400);
+        if (req.user.role !== 'Patient') {
+            throw new AppError('Seuls les patients peuvent demander à participer à un rendez-vous', 403);
         }
 
         const medicalRecord = await MedicalRecord.findOne({ patientId });
@@ -66,6 +111,30 @@ export const requestAppointment = async (req, res, next) => {
         }
 
         const appointment = await AppointmentService.requestAppointment(appointmentId, patientId);
+
+        // Créer une notification pour le médecin
+        await NotificationService.createNotification({
+            userId: appointment.doctorId,
+            title: 'Nouvelle Demande de Rendez-vous',
+            message: `Le patient ${req.user.nom} ${req.user.prenom} souhaite participer à votre rendez-vous du ${appointment.date} à ${appointment.heure_debut}`,
+            type: 'appointment',
+            priority: 'medium',
+            data: {
+                appointmentId: appointment._id,
+                patientId: patientId,
+                patientName: `${req.user.nom} ${req.user.prenom}`,
+                date: appointment.date,
+                heure_debut: appointment.heure_debut
+            },
+            isRead: false,
+            readAt: null,
+            reminderSent: false,
+            reminderCount: 0,
+            lastReminderSent: null,
+            groupId: null,
+            groupType: null
+        });
+
         res.status(200).json({ message: 'Demande de participation envoyée', appointment });
     } catch (error) {
         next(error);
@@ -75,67 +144,62 @@ export const requestAppointment = async (req, res, next) => {
 // 4. Accepter ou rejeter une demande de participation (par un médecin)
 export const handleAppointmentRequest = async (req, res, next) => {
     try {
-        console.log('Début handleAppointmentRequest:', {
-            params: req.params,
-            body: req.body,
-            user: req.user
-        });
-
         const { appointmentId } = req.params;
         const { statutDemande, patientId } = req.body;
 
-        console.log('Paramètres extraits:', {
-            appointmentId,
-            statutDemande,
-            patientId
-        });
-
-        // Vérification des paramètres requis
-        if (!appointmentId) {
-            throw new AppError('ID de rendez-vous manquant', 400);
-        }
-        if (!statutDemande) {
-            throw new AppError('Statut de demande manquant', 400);
-        }
-        if (!patientId) {
-            throw new AppError('ID de patient manquant', 400);
+        if (!appointmentId || !statutDemande || !patientId) {
+            throw new AppError('Paramètres manquants', 400);
         }
 
-        // Vérification du rôle de l'utilisateur
         if (req.user.role !== 'Medecin') {
             throw new AppError('Seuls les médecins peuvent gérer les demandes de rendez-vous', 403);
         }
 
-        // Vérification du format du statut
         if (!['accepté', 'refusé'].includes(statutDemande)) {
-            throw new AppError('Statut de demande invalide. Doit être "accepté" ou "refusé"', 400);
+            throw new AppError('Statut de demande invalide', 400);
         }
 
-        console.log('Paramètres validés, appel du service avec:', {
-            appointmentId,
-            statutDemande,
-            patientId
-        });
-
-        // Appel au service pour gérer la demande
         const updatedAppointment = await AppointmentService.handleAppointmentRequest(
             appointmentId,
             statutDemande,
             patientId
         );
 
-        console.log('Rendez-vous mis à jour avec succès:', updatedAppointment);
+        // Récupérer les informations du patient
+        const patient = await User.findById(patientId);
+        if (!patient) {
+            throw new AppError('Patient non trouvé', 404);
+        }
+
+        // Créer une notification pour le patient
+        await NotificationService.createNotification({
+            userId: patientId,
+            title: `Réponse à votre demande de rendez-vous`,
+            message: `Le Dr. ${req.user.nom} ${req.user.prenom} a ${statutDemande} votre demande de rendez-vous du ${updatedAppointment.date} à ${updatedAppointment.heure_debut}`,
+            type: 'appointment',
+            priority: 'high',
+            data: {
+                appointmentId: updatedAppointment._id,
+                doctorId: req.user._id,
+                doctorName: `${req.user.nom} ${req.user.prenom}`,
+                date: updatedAppointment.date,
+                heure_debut: updatedAppointment.heure_debut,
+                status: statutDemande
+            },
+            isRead: false,
+            readAt: null,
+            reminderSent: false,
+            reminderCount: 0,
+            lastReminderSent: null,
+            groupId: null,
+            groupType: null
+        });
 
         res.status(200).json({
             message: 'Demande de rendez-vous traitée avec succès',
             appointment: updatedAppointment
         });
     } catch (error) {
-        console.error('Erreur dans handleAppointmentRequest:', {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-        });
         next(error);
     }
 };

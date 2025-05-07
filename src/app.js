@@ -16,6 +16,7 @@ import { connectDB } from './config/database.js';
 import corsConfig from './middlewares/security/cors.js';
 import { logActivity } from './middlewares/HistoriqueMiddleware.js'; // ✅ Ajout du middleware pour les logs
 import { errorHandler } from './middlewares/error/errorHandler.js';
+import './cron/notificationCron.js';
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
 

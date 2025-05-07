@@ -1,116 +1,23 @@
 import express from 'express';
-import { getAllNotifications, getUserNotifications, createNotification, markAsRead, disableNotification } from '../../controllers/notification/NotificationController.js';
+import { authenticate } from '../../middlewares/auth/authenticate.js';
+import { notificationRateLimit, validateNotificationData } from '../../middlewares/notification/rateLimitMiddleware.js';
+import NotificationController from '../../controllers/notification/notificationController.js';
+
 const router = express.Router();
 
-/**
- * @swagger
- * /api/notifications:
- *   get:
- *     summary: Récupérer toutes les notifications
- *     description: Récupère toutes les notifications disponibles.
- *     tags:
- *       - Notifications
- *     responses:
- *       200:
- *         description: Liste de toutes les notifications
- */
-router.get('/', getAllNotifications);
+// Routes existantes avec validation et limite de taux
+router.get('/', authenticate, NotificationController.getUserNotifications);
+router.get('/unread', authenticate, NotificationController.getUnreadNotifications);
+router.put('/:id/read', authenticate, NotificationController.markNotificationAsRead);
+router.put('/read-all', authenticate, NotificationController.markAllNotificationsAsRead);
+router.delete('/:notificationId', authenticate, NotificationController.deleteNotification);
 
-/**
- * @swagger
- * /api/notifications/{userId}:
- *   get:
- *     summary: Récupérer les notifications d'un utilisateur
- *     description: Récupère toutes les notifications d'un utilisateur donné.
- *     tags:
- *       - Notifications
- *     parameters:
- *       - in: path
- *         name: userId
- *         required: true
- *         description: L'ID de l'utilisateur.
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Liste des notifications de l'utilisateur
- *       404:
- *         description: Utilisateur non trouvé
- */
-router.get('/:userId', getUserNotifications);
+// Nouvelles routes pour les notifications groupées
+router.get('/grouped', authenticate, NotificationController.getGroupedNotifications);
+router.get('/grouped/:groupId', authenticate, NotificationController.getGroupedNotificationDetails);
+router.put('/grouped/:groupId/read', authenticate, NotificationController.markGroupAsRead);
 
-/**
- * @swagger
- * /api/notifications/{notificationId}/read:
- *   put:
- *     summary: Marquer une notification comme lue
- *     description: Change l'état de la notification pour la marquer comme lue.
- *     tags:
- *       - Notifications
- *     parameters:
- *       - in: path
- *         name: notificationId
- *         required: true
- *         description: L'ID de la notification à marquer comme lue.
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Notification marquée comme lue
- *       404:
- *         description: Notification non trouvée
- */
-router.put('/:notificationId/read', markAsRead);
+// Route pour les métriques (admin uniquement)
+router.get('/metrics', authenticate, NotificationController.getNotificationMetrics);
 
-/**
- * @swagger
- * /api/notifications/{notificationId}/disable:
- *   put:
- *     summary: Désactiver une notification
- *     description: Désactive une notification donnée.
- *     tags:
- *       - Notifications
- *     parameters:
- *       - in: path
- *         name: notificationId
- *         required: true
- *         description: L'ID de la notification à désactiver.
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Notification désactivée avec succès
- *       404:
- *         description: Notification non trouvée
- */
-router.put('/:notificationId/disable', disableNotification);
-
-/**
- * @swagger
- * /api/notifications:
- *   post:
- *     summary: Créer une nouvelle notification
- *     description: Crée une notification pour un utilisateur spécifique.
- *     tags:
- *       - Notifications
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               userId:
- *                 type: string
- *               message:
- *                 type: string
- *               type:
- *                 type: string
- *                 enum: [info, warning, error]
- *     responses:
- *       201:
- *         description: Notification créée avec succès
- */
-router.post('/', createNotification);
-
-export default router;
+export default router; 

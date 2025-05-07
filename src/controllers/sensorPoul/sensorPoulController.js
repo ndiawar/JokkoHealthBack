@@ -3,164 +3,353 @@ import Sensor from '../../models/sensor/sensorModel.js';
 import User from '../../models/user/userModel.js'; // Assurez-vous d'importer le modèle User
 import { v4 as uuidv4 } from 'uuid'; // Importer uuid pour générer un sensorId unique
 import MedicalRecord from '../../models/medical/medicalModel.js'; // Importer le modèle MedicalRecord
+import NotificationService from '../../services/notificationService.js';
+import { AppError } from '../../middlewares/error/errorHandler.js';
 
 // Store pour les connexions SSE
 const activeConnections = new Map();
 let latestSensorData = null;
 
+// Store pour suivre les anomalies persistantes
+const anomalyTracking = new Map();
 
-export const assignSensorToUser = async (req, res) => {
+// Fonction pour vérifier si les anomalies sont persistantes
+const checkPersistentAnomalies = async (sensorId, anomalies, heartRate, oxygenLevel) => {
+  const now = Date.now();
+  const fiveMinutesAgo = now - (5 * 60 * 1000);
+  
+  if (!anomalyTracking.has(sensorId)) {
+    anomalyTracking.set(sensorId, {
+      anomalies: [],
+      lastCheck: now,
+      readings: []
+    });
+  }
+
+  const tracking = anomalyTracking.get(sensorId);
+  tracking.readings.push({
+    timestamp: now,
+    heartRate,
+    oxygenLevel,
+    anomalies
+  });
+
+  // Garder seulement les lectures des 5 dernières minutes
+  tracking.readings = tracking.readings.filter(reading => reading.timestamp > fiveMinutesAgo);
+
+  // Vérifier si les anomalies sont persistantes
+  const persistentAnomalies = [];
+  const anomalyTypes = new Set(anomalies);
+
+  for (const type of anomalyTypes) {
+    const anomalyReadings = tracking.readings.filter(reading => 
+      reading.anomalies.includes(type)
+    );
+
+    if (anomalyReadings.length >= 3) { // Au moins 3 lectures avec la même anomalie
+      persistentAnomalies.push(type);
+    }
+  }
+
+  return persistentAnomalies;
+};
+
+// Validation des données d'entrée
+const validateSensorData = (data) => {
+  const { heartRate, oxygenLevel, macAddress, timestamp } = data;
+  
+  if (!heartRate || !oxygenLevel || !macAddress || !timestamp) {
+    throw new AppError('Données manquantes', 400);
+  }
+
+  if (!validateHeartRate(heartRate)) {
+    throw new AppError('Fréquence cardiaque invalide', 400);
+  }
+
+  if (!validateOxygenLevel(oxygenLevel)) {
+    throw new AppError('Niveau d\'oxygène invalide', 400);
+  }
+
+  if (!/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(macAddress)) {
+    throw new AppError('Format d\'adresse MAC invalide', 400);
+  }
+
+  return true;
+};
+
+export const assignSensorToUser = async (req, res, next) => {
   try {
-    const { macAddress, recordId } = req.body; // Utiliser recordId au lieu de userId
+    // Vérification du rôle
+    if (req.user.role !== 'Medecin') {
+      throw new AppError('Seuls les médecins peuvent assigner des capteurs', 403);
+    }
 
-    console.log("Données reçues :", { macAddress, recordId }); // Log des données reçues
+    const { macAddress, recordId } = req.body;
 
-    // Vérifier que les données nécessaires sont présentes
+    // Validation des données d'entrée
     if (!macAddress || !recordId) {
-      console.log("Données manquantes :", { macAddress, recordId }); // Log des données manquantes
-      return res.status(400).json({ message: "Adresse MAC et ID du dossier médical nécessaires" });
+      throw new AppError('Adresse MAC et ID du dossier médical nécessaires', 400);
     }
 
-    // Vérifier que recordId est un ObjectId valide
     if (!mongoose.Types.ObjectId.isValid(recordId)) {
-      console.log("ID du dossier médical invalide :", recordId); // Log de l'ID invalide
-      return res.status(400).json({ message: "ID du dossier médical invalide" });
+      throw new AppError('ID du dossier médical invalide', 400);
     }
 
-    // Vérifier que req.user est défini
-    if (!req.user || !req.user._id) {
-      console.log("Utilisateur non authentifié"); // Log de l'utilisateur non authentifié
-      return res.status(401).json({ message: "Utilisateur non authentifié" });
-    }
+    // Récupération des données en parallèle pour optimiser les performances
+    const [medicalRecord, existingSensor] = await Promise.all([
+      MedicalRecord.findById(recordId),
+      Sensor.findOne({ mac: macAddress })
+    ]);
 
-    const medecinId = req.user._id; // Supposant que l'authentification est en place
-
-    // Récupérer le dossier médical
-    const medicalRecord = await MedicalRecord.findById(recordId);
     if (!medicalRecord) {
-      console.log("Dossier médical non trouvé :", recordId); // Log du dossier médical non trouvé
-      return res.status(404).json({ message: "Dossier médical non trouvé" });
+      throw new AppError('Dossier médical non trouvé', 404);
     }
 
-    // Récupérer l'ID de l'utilisateur (patient) à partir du dossier médical
+    if (existingSensor && existingSensor.medicalRecord) {
+      throw new AppError('Ce capteur est déjà assigné à un dossier médical', 400);
+    }
+
     const userId = medicalRecord.patientId;
     if (!userId) {
-      console.log("ID de l'utilisateur non trouvé dans le dossier médical :", medicalRecord); // Log de l'ID manquant
-      return res.status(404).json({ message: "ID de l'utilisateur non trouvé dans le dossier médical" });
+      throw new AppError('ID de l\'utilisateur non trouvé dans le dossier médical', 404);
     }
-    
-    // Vérifier si l'utilisateur existe
+
     const user = await User.findById(userId);
     if (!user) {
-      console.log("Utilisateur non trouvé :", userId); // Log de l'utilisateur non trouvé
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
+      throw new AppError('Utilisateur non trouvé', 404);
     }
 
-    // Vérifier si le capteur existe déjà et est assigné à un autre dossier médical
-    const existingSensor = await Sensor.findOne({ mac: macAddress });
-    if (existingSensor && existingSensor.medicalRecord) {
-      console.log("Capteur déjà assigné :", macAddress); // Log du capteur déjà assigné
-      return res.status(400).json({ message: "Ce capteur est déjà assigné à un dossier médical" });
-    }
-
-    // Si le capteur n'est pas encore assigné, on peut l'assigner au dossier médical
+    // Création et sauvegarde du capteur
     const newSensor = new Sensor({
       mac: macAddress,
-      medicalRecord: recordId, // Utiliser l'ID du dossier médical récupéré
-      heartRate: 0, // Valeur par défaut
-      spo2: 0, // Valeur par défaut
+      medicalRecord: recordId,
+      heartRate: 0,
+      spo2: 0,
       anomalies: [],
       status: 'Active',
-      sensorId: uuidv4(), // Générer un sensorId unique
+      sensorId: uuidv4(),
     });
 
-    // Enregistrer le capteur
-    await newSensor.save();
+    // Utilisation de Promise.all pour les opérations parallèles
+    const [savedSensor, updatedRecord] = await Promise.all([
+      newSensor.save(),
+      MedicalRecord.findByIdAndUpdate(
+        recordId,
+        { sensor: newSensor._id },
+        { new: true }
+      )
+    ]);
 
-    // Après await newSensor.save();
-    medicalRecord.sensor = newSensor._id;
-    await medicalRecord.save();
+    // Récupération des SuperAdmin en parallèle avec les autres opérations
+    const superAdmins = await User.find({ role: 'SuperAdmin' });
 
-    console.log("Capteur assigné avec succès :", newSensor); // Log du capteur assigné
+    // Création des notifications en parallèle
+    const notificationPromises = [
+      // Notification pour le patient
+      NotificationService.createNotification({
+        userId: userId,
+        title: 'Nouveau Capteur Assigné',
+        message: `Le Dr. ${req.user.nom} ${req.user.prenom} vous a assigné un nouveau capteur de pouls`,
+        type: 'sensor',
+        priority: 'medium',
+        data: {
+          sensorId: savedSensor._id,
+          macAddress,
+          doctorId: req.user._id,
+          doctorName: `${req.user.nom} ${req.user.prenom}`
+        }
+      }),
+      // Notifications pour les SuperAdmin
+      ...superAdmins.map(superAdmin => 
+        NotificationService.createNotification({
+          userId: superAdmin._id,
+          title: 'Nouveau Capteur Assigné',
+          message: `Le Dr. ${req.user.nom} ${req.user.prenom} a assigné un nouveau capteur au patient ${user.nom} ${user.prenom}`,
+          type: 'sensor',
+          priority: 'low',
+          data: {
+            sensorId: savedSensor._id,
+            macAddress,
+            doctorId: req.user._id,
+            doctorName: `${req.user.nom} ${req.user.prenom}`,
+            patientId: userId,
+            patientName: `${user.nom} ${user.prenom}`
+          }
+        })
+      )
+    ];
 
-    // Répondre au client
+    await Promise.all(notificationPromises);
+
     res.status(200).json({
       message: "Capteur assigné au dossier médical avec succès",
-      sensor: newSensor,
-      medicalRecord: medicalRecord // Inclure le dossier médical dans la réponse
+      sensor: savedSensor,
+      medicalRecord: updatedRecord
     });
   } catch (error) {
-    console.error("❌ Erreur lors de l'assignation du capteur :", error);
-    res.status(500).json({ message: "Erreur serveur" });
+    next(error);
   }
 };
 
-// Méthode pour recevoir et mettre à jour les données du capteur en temps réel
-export const receiveSensorData = async (req, res) => {
+export const receiveSensorData = async (req, res, next) => {
   try {
-    let { heartRate, oxygenLevel, macAddress, timestamp } = req.body; // Changer const en let pour pouvoir réassigner timestamp
+    // Validation des données d'entrée
+    validateSensorData(req.body);
 
-    // Log des données reçues pour vérifier qu'elles sont bien envoyées
-    console.log("🔹 Données reçues depuis ESP8266 :");
-    console.log(`💓 Fréquence cardiaque : ${heartRate} BPM`);
-    console.log(`🩸 Saturation O2 : ${oxygenLevel}%`);
-    console.log(`📡 Adresse MAC : ${macAddress}`);
-    console.log(`🕰️ Heure des données : ${timestamp}`);
+    let { heartRate, oxygenLevel, macAddress, timestamp } = req.body;
 
-    // Vérifier que toutes les données nécessaires sont bien reçues
-    if (!heartRate || !oxygenLevel || !macAddress || !timestamp) {
-      console.log("❌ Erreur : Données manquantes");
-      return res.status(400).json({ message: "Données manquantes" });
-    }
-
-    // Validation de la fréquence cardiaque et de la saturation en oxygène
-    if (!validateHeartRate(heartRate) || !validateOxygenLevel(oxygenLevel)) {
-      return res.status(400).json({ message: "Données invalides" });
-    }
-
-    // Si le timestamp est au format "HH:mm:ss", ajouter une date par défaut (par exemple, aujourd'hui)
-    let date = new Date(); // Date actuelle
+    // Formatage du timestamp
+    let date = new Date();
     if (timestamp && !timestamp.includes("T")) {
-      // Ajouter la date actuelle pour construire une date complète
       const [hour, minute, second] = timestamp.split(":");
-      date.setHours(hour, minute, second, 0);  // Réglage de l'heure, minute, seconde
-      // Mettre à jour le format du timestamp
-      timestamp = date.toISOString();  // Transforme en format ISO
+      date.setHours(hour, minute, second, 0);
+      timestamp = date.toISOString();
     }
 
-    // Recherche du capteur via l'adresse MAC
-    console.log("🔍 Recherche du capteur avec l'adresse MAC :", macAddress);
+    // Récupération du capteur
     const sensor = await Sensor.findOne({ mac: macAddress });
-
     if (!sensor) {
-      console.log("❌ Erreur : Capteur non trouvé pour l'adresse MAC", macAddress);
-      return res.status(404).json({ message: "Capteur non trouvé" });
+      throw new AppError('Capteur non trouvé', 404);
     }
 
-    // Mise à jour des données du capteur avec les nouvelles valeurs
-    console.log("📦 Mise à jour des données du capteur avec les nouvelles valeurs...");
+    // Mise à jour des données du capteur
     sensor.heartRate = heartRate;
     sensor.spo2 = oxygenLevel;
     sensor.timestamp = timestamp;
 
-    // Détection des anomalies
-    const anomalies = detectAnomalies(heartRate, oxygenLevel);
-    sensor.anomalies = anomalies;
+    const { anomalies, isEmergency } = detectAnomalies(heartRate, oxygenLevel);
+    
+    // Vérifier si les anomalies sont persistantes
+    const persistentAnomalies = await checkPersistentAnomalies(
+      sensor._id,
+      anomalies,
+      heartRate,
+      oxygenLevel
+    );
 
-    // Sauvegarde du capteur mis à jour dans la base de données
-    console.log("💾 Sauvegarde des données mises à jour dans la base de données...");
-    await sensor.save();
+    // Ne créer des notifications que si les anomalies sont persistantes
+    if (persistentAnomalies.length > 0) {
+      const [medicalRecord, doctor] = await Promise.all([
+        MedicalRecord.findById(sensor.medicalRecord),
+        User.findById(sensor.medicalRecord?.medecinId)
+      ]);
 
-    // Après await sensor.save();
+      if (medicalRecord) {
+        const notificationPromises = [];
+
+        if (isEmergency) {
+          // Notifications d'urgence
+          notificationPromises.push(
+            // Notification patient
+            NotificationService.createNotification({
+              userId: medicalRecord.patientId,
+              title: '🚨 URGENCE MÉDICALE',
+              message: `URGENCE : Des anomalies critiques ont été détectées dans vos données de santé : ${persistentAnomalies.join(', ')}`,
+              type: 'emergency',
+              priority: 'high',
+              data: {
+                sensorId: sensor._id,
+                heartRate,
+                oxygenLevel,
+                anomalies: persistentAnomalies,
+                timestamp,
+                isEmergency: true
+              }
+            }),
+            // Notification médecin si disponible
+            doctor && NotificationService.createNotification({
+              userId: doctor._id,
+              title: '🚨 URGENCE PATIENT',
+              message: `URGENCE : Anomalies critiques détectées pour le patient ${medicalRecord.patientId}. ${persistentAnomalies.join(', ')}`,
+              type: 'emergency',
+              priority: 'high',
+              data: {
+                sensorId: sensor._id,
+                patientId: medicalRecord.patientId,
+                heartRate,
+                oxygenLevel,
+                anomalies: persistentAnomalies,
+                timestamp,
+                isEmergency: true
+              }
+            }),
+            // Notifications SuperAdmin
+            User.find({ role: 'SuperAdmin' }).then(superAdmins => 
+              Promise.all(superAdmins.map(superAdmin =>
+                NotificationService.createNotification({
+                  userId: superAdmin._id,
+                  title: '🚨 URGENCE SYSTÈME',
+                  message: `URGENCE : Anomalies critiques détectées pour le patient ${medicalRecord.patientId}. ${persistentAnomalies.join(', ')}`,
+                  type: 'emergency',
+                  priority: 'high',
+                  data: {
+                    sensorId: sensor._id,
+                    patientId: medicalRecord.patientId,
+                    doctorId: doctor?._id,
+                    heartRate,
+                    oxygenLevel,
+                    anomalies: persistentAnomalies,
+                    timestamp,
+                    isEmergency: true
+                  }
+                })
+              ))
+            )
+          );
+        } else {
+          // Notifications pour anomalies non critiques
+          notificationPromises.push(
+            // Notification pour le patient
+            NotificationService.createNotification({
+              userId: medicalRecord.patientId,
+              title: '⚠️ Anomalies Persistantes Détectées',
+              message: `Des anomalies persistantes ont été détectées dans vos données de santé : ${persistentAnomalies.join(', ')}`,
+              type: 'sensor',
+              priority: 'medium',
+              data: {
+                sensorId: sensor._id,
+                heartRate,
+                oxygenLevel,
+                anomalies: persistentAnomalies,
+                timestamp,
+                isEmergency: false
+              }
+            }),
+            // Notification pour le médecin
+            doctor && NotificationService.createNotification({
+              userId: doctor._id,
+              title: '⚠️ Anomalies Persistantes Patient',
+              message: `Des anomalies persistantes ont été détectées pour le patient ${medicalRecord.patientId} : ${persistentAnomalies.join(', ')}`,
+              type: 'sensor',
+              priority: 'medium',
+              data: {
+                sensorId: sensor._id,
+                patientId: medicalRecord.patientId,
+                heartRate,
+                oxygenLevel,
+                anomalies: persistentAnomalies,
+                timestamp,
+                isEmergency: false
+              }
+            })
+          );
+        }
+
+        await Promise.all(notificationPromises.filter(Boolean));
+      }
+    }
+
+    // Mise à jour des données en temps réel
     latestSensorData = {
       heartRate,
       oxygenLevel,
       macAddress,
       timestamp,
-      anomalies
+      anomalies: persistentAnomalies,
+      isEmergency
     };
 
-    // Après la mise à jour de latestSensorData
+    // Envoi des données aux clients connectés
     if (activeConnections.has(sensor.medicalRecord.toString())) {
       const clients = activeConnections.get(sensor.medicalRecord.toString());
       for (const client of clients) {
@@ -168,29 +357,12 @@ export const receiveSensorData = async (req, res) => {
       }
     }
 
-    // Log des anomalies détectées (si elles existent)
-    if (anomalies.length > 0) {
-      console.log("🚨 Anomalies détectées :", anomalies);
-    } else {
-      console.log("✅ Aucune anomalie détectée.");
-    }
-
-    // Réponse au client (ESP8266)
-    console.log("✅ Réponse envoyée au client avec succès.");
     res.status(200).json({
       message: "Données reçues et mises à jour avec succès",
-      sensorData: {
-        heartRate,
-        oxygenLevel,
-        macAddress,
-        timestamp,
-        anomalies
-      }
+      sensorData: latestSensorData
     });
-
   } catch (error) {
-    console.error("❌ Erreur lors de la réception des données :", error);
-    res.status(500).json({ message: "Erreur serveur" });
+    next(error);
   }
 };
 
@@ -347,46 +519,48 @@ export const getSensorDataForCurrentUser = async (req, res) => {
   }
 };
 
-// Validation de la fréquence cardiaque réaliste
+// Validation de la fréquence cardiaque
 const validateHeartRate = (heartRate) => {
-  // Fréquence cardiaque trop basse (inférieure à 40) ou trop élevée (supérieure à 200)
-  if (heartRate < 40 || heartRate > 200) {
-    console.log("❌ Fréquence cardiaque irréaliste détectée. La valeur a été ignorée.");
-    return false;
-  }
-  return true;
+  return heartRate >= 40 && heartRate <= 200;
 };
 
 // Détection des anomalies
 const detectAnomalies = (heartRate, oxygenLevel) => {
   let anomalies = [];
+  let isEmergency = false;
 
-  // Anomalies de fréquence cardiaque
+  // Validation plus stricte des données
+  if (heartRate < 40 || heartRate > 200) {
+    return { anomalies: [], isEmergency: false }; // Ignorer les valeurs manifestement erronées
+  }
+
+  if (oxygenLevel < 0 || oxygenLevel > 100) {
+    return { anomalies: [], isEmergency: false }; // Ignorer les valeurs manifestement erronées
+  }
+
+  // Anomalies de fréquence cardiaque avec validation
   if (heartRate < 40) {
     anomalies.push("Bradycardie extrême détectée! Fréquence cardiaque trop basse.");
+    isEmergency = true;
   } else if (heartRate < 50) {
     anomalies.push("Bradycardie détectée! Fréquence cardiaque trop basse.");
   } else if (heartRate > 100) {
     anomalies.push("Tachycardie détectée! Fréquence cardiaque trop élevée.");
   }
 
-  // Anomalies de saturation en oxygène
+  // Anomalies de saturation en oxygène avec validation
   if (oxygenLevel < 90) {
     anomalies.push("Hypoxémie détectée! SpO2 trop bas.");
   }
   if (oxygenLevel < 85) {
     anomalies.push("Danger critique! SpO2 trop bas.");
+    isEmergency = true;
   }
 
-  return anomalies;
+  return { anomalies, isEmergency };
 };
 
-// Validation de la saturation en oxygène réaliste
+// Validation de la saturation en oxygène
 const validateOxygenLevel = (oxygenLevel) => {
-  // La saturation en oxygène doit être entre 0 et 100 %
-  if (oxygenLevel < 0 || oxygenLevel > 100) {
-    console.log("❌ Saturation O2 irréaliste détectée. La valeur a été ignorée.");
-    return false;
-  }
-  return true;
+  return oxygenLevel >= 0 && oxygenLevel <= 100;
 };
