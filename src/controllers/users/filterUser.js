@@ -63,29 +63,63 @@ export const filterPatients = async (req, res) => {
 // Méthode pour filtrer les patients et les médecins pour chaque fin de mois
 export const filterPatientsAndMedecinsForMonthlyGraph = async (req, res) => {
     try {
-        const currentDate = new Date();
-        const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1); // Début du mois
-        const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0); // Fin du mois
-
-        // Compter les patients et médecins créés ce mois-ci
-        const patients = await User.countDocuments({ 
-            role: 'Patient', 
-            createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-        });
-
-        const medecins = await User.countDocuments({ 
-            role: 'Medecin', 
-            createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-        });
+        // Récupérer les statistiques pour tous les mois
+        const stats = await User.aggregate([
+            {
+                $match: {
+                    role: { $in: ['Patient', 'Medecin'] }
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        year: { $year: "$createdAt" },
+                        month: { $month: "$createdAt" },
+                        role: "$role"
+                    },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $group: {
+                    _id: {
+                        year: "$_id.year",
+                        month: "$_id.month"
+                    },
+                    patients: {
+                        $sum: {
+                            $cond: [{ $eq: ["$_id.role", "Patient"] }, "$count", 0]
+                        }
+                    },
+                    medecins: {
+                        $sum: {
+                            $cond: [{ $eq: ["$_id.role", "Medecin"] }, "$count", 0]
+                        }
+                    }
+                }
+            },
+            {
+                $sort: {
+                    "_id.year": 1,
+                    "_id.month": 1
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    year: "$_id.year",
+                    month: "$_id.month",
+                    patients: 1,
+                    medecins: 1
+                }
+            }
+        ]);
 
         // Réponse en cas de succès
         res.status(200).json({
             success: true,
             message: 'Données mensuelles des patients et médecins récupérées avec succès.',
-            data: {
-                patients,
-                medecins
-            }
+            data: stats
         });
     } catch (error) {
         // Gestion des erreurs

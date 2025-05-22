@@ -9,11 +9,15 @@ export class AppointmentService {
     }
 
     static async getAvailableAppointments(doctorId) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         return await Appointment.find({
             doctorId,
             patientId: null,
             statutDemande: 'en attente',
-            demandeParticipe: false
+            demandeParticipe: false,
+            date: { $gte: today }
         }).select('date heure_debut heure_fin specialiste').lean();
     }
 

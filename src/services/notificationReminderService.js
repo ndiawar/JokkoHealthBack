@@ -1,6 +1,7 @@
 import Notification from '../models/notification/notificationModel.js';
 import NotificationService from './notificationService.js';
 import { AppError } from '../middlewares/error/errorHandler.js';
+import User from '../models/user/userModel.js';
 
 class NotificationReminderService {
   // Configuration des délais de rappel (en heures)

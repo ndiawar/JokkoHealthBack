@@ -185,4 +185,5 @@ router.get('/filter-patients', logAction, authenticate, roleCheck(['SuperAdmin',
  */ 
 router.get('/filter-patients-medecins-monthly', logAction, filterPatientsAndMedecinsForMonthlyGraph);
 
+
 export default router;
