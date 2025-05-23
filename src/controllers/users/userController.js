@@ -217,6 +217,7 @@ class UserController extends CrudController {
             }
 
             const { email, motDePasse } = req.body;
+            console.log('Tentative de connexion pour:', email);
 
             if (!email || !motDePasse) {
                 return res.status(400).json({ message: 'Email et mot de passe sont requis' });
@@ -224,8 +225,16 @@ class UserController extends CrudController {
 
             const user = await User.findOne({ email });
             if (!user) {
+                console.log('Utilisateur non trouvé:', email);
                 return res.status(401).json({ message: 'Identifiants invalides, veuillez vérifier votre email' });
             }
+
+            console.log('Utilisateur trouvé:', {
+                id: user._id,
+                email: user.email,
+                role: user.role,
+                motDePasseHashé: user.motDePasse.startsWith('$2')
+            });
 
             if (user.blocked || user.archived) {
                 return res.status(403).json({ message: 'Accès refusé : utilisateur bloqué ou archivé' });
@@ -233,12 +242,16 @@ class UserController extends CrudController {
 
             // Vérifier si le mot de passe est haché
             if (!user.motDePasse.startsWith('$2')) {
+                console.log('Mot de passe non haché, hachage en cours...');
                 // Si le mot de passe n'est pas haché, le hacher
                 user.motDePasse = await bcrypt.hash(user.motDePasse, 10);
                 await user.save();
+                console.log('Mot de passe haché et sauvegardé');
             }
 
             const isMatch = await bcrypt.compare(motDePasse, user.motDePasse);
+            console.log('Résultat de la comparaison des mots de passe:', isMatch);
+
             if (!isMatch) {
                 return res.status(401).json({ message: 'Identifiants invalides, veuillez vérifier votre mot de passe' });
             }
@@ -271,7 +284,7 @@ class UserController extends CrudController {
             });
 
         } catch (error) {
-            console.error('Erreur lors de la connexion de l\'utilisateur:', error);
+            console.error('Erreur détaillée lors de la connexion:', error);
             return res.status(500).json({ error: 'Erreur serveur, veuillez réessayer plus tard' });
         }
     }
