@@ -14,14 +14,18 @@ const corsOptions = {
     // Autoriser les requêtes sans origine (comme les requêtes mobiles ou curl)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Log pour le débogage
+    console.log('Origine de la requête:', origin);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
       callback(null, true);
     } else {
       console.log('Origine bloquée par CORS:', origin);
+      console.log('Origines autorisées:', allowedOrigins);
       callback(new Error('Non autorisé par CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: [
     'Content-Type',
     'Authorization',
