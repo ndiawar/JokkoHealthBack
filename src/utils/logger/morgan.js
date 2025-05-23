@@ -3,8 +3,10 @@ import logger from './logger.js';
 
 const morganMiddleware = morgan('combined', {
     stream: {
-        write: (message) => logger.info(message.trim()),
-    },
+        write: (message) => {
+            logger.info(message.trim());
+        }
+    }
 });
 
 export default morganMiddleware;

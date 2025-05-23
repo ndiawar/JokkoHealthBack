@@ -79,3 +79,7 @@ docker-compose.yml
 keys/
 certs/
 secrets/
+
+Dockerfile
+docker-compose.yml
+.dockerignore

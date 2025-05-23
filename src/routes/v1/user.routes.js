@@ -3,8 +3,7 @@ import UserController from '../../controllers/users/userController.js';
 import { userValidator } from '../../middlewares/validation/userValidation.js';
 import { authenticate } from '../../middlewares/auth/authenticate.js';
 import roleCheck from '../../middlewares/auth/roleCheck.js';  // Import du middleware de vérification des rôles
-import upload from '../../config/multerConfig.js';
-import multer from 'multer';
+import { upload, handleMulterError } from '../../config/multerConfig.js';
 import logAction from '../../middlewares/logs/logMiddleware.js';
 const router = express.Router();
 
@@ -438,5 +437,8 @@ router.post('/login', logAction, userValidator.login, UserController.login);
  *         description: Erreur serveur lors de la déconnexion.
  */
 router.post('/logout', logAction, authenticate, UserController.logout);
+
+// Route pour l'upload de photo de profil
+router.post('/upload-photo', authenticate, upload.single('photo'), handleMulterError, UserController.uploadPhoto);
 
 export default router;

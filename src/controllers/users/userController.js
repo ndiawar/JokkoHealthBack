@@ -13,7 +13,7 @@ import BlacklistedToken from '../../models/auth/blacklistedToken.js';
 import User from '../../models/user/userModel.js';
 import Patient from '../../models/user/patientModel.js';
 import MedicalRecord from '../../models/medical/medicalModel.js';
-import upload from '../../config/multerConfig.js';  // Importer la configuration Multer
+import { upload, handleMulterError } from '../../config/multerConfig.js';  // Importer la configuration Multer
 import NotificationService from '../../services/notificationService.js';
 
 // Utilisation de fileURLToPath pour obtenir le répertoire actuel
@@ -28,6 +28,7 @@ class UserController extends CrudController {
         this.unblockUser = this.unblockUser.bind(this);
         this.archiveUser = this.archiveUser.bind(this);
         this.unarchiveUser = this.unarchiveUser.bind(this);
+        this.uploadPhoto = this.uploadPhoto.bind(this);
     }
 
     // 📌 Inscription d'un utilisateur
@@ -475,6 +476,33 @@ class UserController extends CrudController {
         }
     }
     
+    // 📌 Upload de photo de profil
+    async uploadPhoto(req, res) {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ message: 'Aucun fichier n\'a été uploadé' });
+            }
+
+            const userId = req.user.id;
+            const user = await User.findById(userId);
+
+            if (!user) {
+                return res.status(404).json({ message: 'Utilisateur non trouvé' });
+            }
+
+            // Mettre à jour le chemin de la photo dans le profil de l'utilisateur
+            user.photo = `/uploads/profiles/${req.file.filename}`;
+            await user.save();
+
+            return res.status(200).json({
+                message: 'Photo de profil mise à jour avec succès',
+                photo: user.photo
+            });
+        } catch (error) {
+            console.error('Erreur lors de l\'upload de la photo:', error);
+            return res.status(500).json({ message: 'Erreur lors de l\'upload de la photo' });
+        }
+    }
 }
 
 // Exporte la classe directement
