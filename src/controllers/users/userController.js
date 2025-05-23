@@ -231,6 +231,13 @@ class UserController extends CrudController {
                 return res.status(403).json({ message: 'Accès refusé : utilisateur bloqué ou archivé' });
             }
 
+            // Vérifier si le mot de passe est haché
+            if (!user.motDePasse.startsWith('$2')) {
+                // Si le mot de passe n'est pas haché, le hacher
+                user.motDePasse = await bcrypt.hash(user.motDePasse, 10);
+                await user.save();
+            }
+
             const isMatch = await bcrypt.compare(motDePasse, user.motDePasse);
             if (!isMatch) {
                 return res.status(401).json({ message: 'Identifiants invalides, veuillez vérifier votre mot de passe' });
@@ -245,15 +252,15 @@ class UserController extends CrudController {
 
             // Configuration des cookies
             res.cookie('jwt', token, {
-                httpOnly: true, // Empêche l'accès au cookie par JavaScript côté client
-                secure: process.env.NODE_ENV === 'production', // Assure l'utilisation de HTTPS en production
-                sameSite: 'Strict', // Empêche les attaques CSRF
-                maxAge: 3600000 // 1h en millisecondes
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'Strict',
+                maxAge: 3600000
             });
 
             return res.status(200).json({
                 message: 'Connexion réussie',
-                token, // ⬅️ Ajouter le token ici
+                token,
                 user: {
                     id: user._id,
                     nom: user.nom,
@@ -261,7 +268,7 @@ class UserController extends CrudController {
                     email: user.email,
                     role: user.role
                 }
-            });              
+            });
 
         } catch (error) {
             console.error('Erreur lors de la connexion de l\'utilisateur:', error);
