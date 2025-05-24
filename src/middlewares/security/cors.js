@@ -6,7 +6,7 @@ dotenv.config();
 // Récupération des origines autorisées depuis les variables d'environnement
 const allowedOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',')
-  : ['http://localhost:3000', 'http://localhost:3001', 'https://jokkohealth.onrender.com'];
+  : ['http://localhost:3000', 'http://localhost:3001', 'https://jokkohealth.onrender.com', 'https://jokko-health-front-end.vercel.app'];
 
 // Configuration CORS
 const corsOptions = {
