@@ -409,9 +409,12 @@ class UserController extends CrudController {
     // 📌 Déconnexion d'un utilisateur
     async logout(req, res) {
         try {
-            const token = req.cookies.jwt; // Récupérer le token JWT à partir des cookies
+            // Récupérer le token JWT à partir de l'en-tête Authorization
+            const authHeader = req.headers.authorization;
+            const token = authHeader && authHeader.split(' ')[1];
+            
             if (!token) {
-                return res.status(400).json({ message: "Token manquant" });
+                return res.status(400).json({ message: "Token manquant dans l'en-tête Authorization" });
             }
 
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
