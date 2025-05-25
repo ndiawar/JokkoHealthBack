@@ -260,7 +260,7 @@ class UserController extends CrudController {
             const token = jwt.sign(
                 { id: user._id, role: user.role },
                 process.env.JWT_SECRET,
-                { expiresIn: '1h' }
+                { expiresIn: '24h' }
             );
 
             // Configuration des cookies
@@ -268,7 +268,7 @@ class UserController extends CrudController {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'Strict',
-                maxAge: 3600000
+                maxAge: 86400000 // 24 heures en millisecondes
             });
 
             return res.status(200).json({
