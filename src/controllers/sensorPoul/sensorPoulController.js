@@ -56,24 +56,55 @@ const checkPersistentAnomalies = async (sensorId, anomalies, heartRate, oxygenLe
 
 // Validation des données d'entrée
 const validateSensorData = (data) => {
-  const { heartRate, oxygenLevel, macAddress, timestamp } = data;
+  console.log("Données reçues pour validation:", data);
   
-  if (!heartRate || !oxygenLevel || !macAddress || !timestamp) {
+  const { heartRate, oxygenLevel, macAddress, timestamp, irValue, redValue } = data;
+  
+  // Vérification des données manquantes avec logs
+  if (!heartRate || !oxygenLevel || !macAddress || !timestamp || !irValue || !redValue) {
+    console.log("Données manquantes:", {
+      heartRate: !heartRate,
+      oxygenLevel: !oxygenLevel,
+      macAddress: !macAddress,
+      timestamp: !timestamp,
+      irValue: !irValue,
+      redValue: !redValue
+    });
     throw new AppError('Données manquantes', 400);
   }
 
-  if (!validateHeartRate(heartRate)) {
+  // Validation de la fréquence cardiaque
+  if (typeof heartRate !== 'number' || isNaN(heartRate)) {
+    console.log("Fréquence cardiaque invalide:", heartRate);
     throw new AppError('Fréquence cardiaque invalide', 400);
   }
 
-  if (!validateOxygenLevel(oxygenLevel)) {
+  // Validation du niveau d'oxygène
+  if (typeof oxygenLevel !== 'number' || isNaN(oxygenLevel)) {
+    console.log("Niveau d'oxygène invalide:", oxygenLevel);
     throw new AppError('Niveau d\'oxygène invalide', 400);
   }
 
-  if (!/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(macAddress)) {
+  // Validation des valeurs IR et Rouge
+  if (typeof irValue !== 'number' || isNaN(irValue) || typeof redValue !== 'number' || isNaN(redValue)) {
+    console.log("Valeurs IR ou Rouge invalides:", { irValue, redValue });
+    throw new AppError('Valeurs IR ou Rouge invalides', 400);
+  }
+
+  // Validation du format de l'adresse MAC (accepte les deux formats : et -)
+  const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+  if (!macRegex.test(macAddress)) {
+    console.log("Format d'adresse MAC invalide:", macAddress);
     throw new AppError('Format d\'adresse MAC invalide', 400);
   }
 
+  // Validation du timestamp
+  if (!timestamp || typeof timestamp !== 'string') {
+    console.log("Timestamp invalide:", timestamp);
+    throw new AppError('Timestamp invalide', 400);
+  }
+
+  console.log("Validation des données réussie");
   return true;
 };
 
@@ -193,10 +224,18 @@ export const assignSensorToUser = async (req, res, next) => {
 
 export const receiveSensorData = async (req, res, next) => {
   try {
+    console.log("Données reçues dans receiveSensorData:", req.body);
+    
     // Validation des données d'entrée
     validateSensorData(req.body);
 
-    let { heartRate, oxygenLevel, macAddress, timestamp } = req.body;
+    let { heartRate, oxygenLevel, macAddress, timestamp, irValue, redValue } = req.body;
+
+    // Conversion des valeurs en nombres
+    heartRate = parseFloat(heartRate);
+    oxygenLevel = parseFloat(oxygenLevel);
+    irValue = parseFloat(irValue);
+    redValue = parseFloat(redValue);
 
     // Formatage du timestamp
     let date = new Date();
@@ -209,6 +248,7 @@ export const receiveSensorData = async (req, res, next) => {
     // Récupération du capteur
     const sensor = await Sensor.findOne({ mac: macAddress });
     if (!sensor) {
+      console.log("Capteur non trouvé pour l'adresse MAC:", macAddress);
       throw new AppError('Capteur non trouvé', 404);
     }
 
@@ -216,6 +256,12 @@ export const receiveSensorData = async (req, res, next) => {
     sensor.heartRate = heartRate;
     sensor.spo2 = oxygenLevel;
     sensor.timestamp = timestamp;
+    sensor.irValue = irValue;
+    sensor.redValue = redValue;
+
+    // Sauvegarde des modifications
+    await sensor.save();
+    console.log("Données du capteur mises à jour avec succès");
 
     const { anomalies, isEmergency } = detectAnomalies(heartRate, oxygenLevel);
     
