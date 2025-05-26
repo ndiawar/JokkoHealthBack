@@ -203,6 +203,18 @@ export const receiveSensorData = async (req, res, next) => {
 
     let { mac, heartRate, spo2, timestamp, anomalies } = req.body;
 
+    // Correction du timestamp
+    let currentDate = new Date();
+    if (timestamp) {
+      // Extraire l'heure du timestamp reçu
+      const timeMatch = timestamp.match(/(\d{2}):(\d{2}):(\d{2})/);
+      if (timeMatch) {
+        const [_, hours, minutes, seconds] = timeMatch;
+        currentDate.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds), 0);
+      }
+    }
+    timestamp = currentDate.toISOString();
+
     // Récupération du capteur
     const sensor = await Sensor.findOne({ mac: mac });
     if (!sensor) {
