@@ -14,7 +14,11 @@ import SensorPoulRoutes from './v1/sensorPoul.routes.js';
 
 const router = express.Router();
 
-console.log(router.stack.map(r => r.route ? r.route.path : r.name));
+// Middleware de logging pour toutes les requêtes
+router.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+    next();
+});
 
 // Health Check Route
 router.use('/health', healthCheck);
@@ -32,5 +36,10 @@ router.use('/logs', logRoutes);
 router.use('/rendezvous', rendezvousRoutes);
 router.use('/sensors', SensorRoutes);
 router.use('/sensorPatient', SensorPoulRoutes);
+
+// Route de test pour vérifier que le routeur fonctionne
+router.get('/test', (req, res) => {
+    res.json({ message: 'Routeur fonctionnel' });
+});
 
 export default router;

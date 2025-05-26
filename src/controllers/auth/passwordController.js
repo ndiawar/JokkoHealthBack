@@ -23,15 +23,20 @@ class PasswordController {
 
     // 📌 Demande de réinitialisation de mot de passe (mot de passe oublié)
     async forgotPassword(req, res) {
+        console.log("Début de forgotPassword");
+        console.log("Corps de la requête:", req.body);
         const { email } = req.body; // Récupérer l'email du corps de la requête
 
         if (!email) {
+            console.log("Email manquant dans la requête");
             return res.status(400).json({ message: "L'email est requis" }); // Vérifier si l'email est fourni
         }
 
         try {
+            console.log("Recherche de l'utilisateur avec l'email:", email);
             const user = await User.findOne({ email }); // Trouver l'utilisateur par email
             if (!user) {
+                console.log("Aucun utilisateur trouvé avec cet email");
                 return res.status(404).json({ message: "Aucun utilisateur trouvé avec cet email" }); // Vérifier si l'utilisateur existe
             }
 
@@ -59,7 +64,7 @@ class PasswordController {
             user.resetPasswordExpires = Date.now() + 3600000; // Expiration dans 1 heure
             await user.save(); // Sauvegarder l'utilisateur
 
-            const resetUrl = `http://localhost:3000/create-password?token=${resetToken}&id=${user._id}`; // Construire l'URL de réinitialisation
+            const resetUrl = `https://jokko-health-front-end.vercel.app/create-password?token=${resetToken}&id=${user._id}`; // Construire l'URL de réinitialisation
 
             // Charger le template MJML
             const mjmlFilePath = path.join(__dirname, '../../../src/templates/emails/resetPassword/resetPassword.mjml');
@@ -138,7 +143,7 @@ class PasswordController {
             const htmlContent = html
                 .replace('{{prenom}}', user.prenom)
                 .replace('{{nom}}', user.nom)
-                .replace('{{loginLink}}', 'http://localhost:3000/login'); // Lien vers la page de connexion
+                .replace('{{loginLink}}', 'https://jokko-health-front-end.vercel.app/login'); // Lien vers la page de connexion
 
             // Envoyer l'email
             await emailService.sendEmail({
@@ -288,7 +293,7 @@ class PasswordController {
             const htmlContent = html
                 .replace('{{prenom}}', user.prenom)
                 .replace('{{nom}}', user.nom)
-                .replace('{{loginLink}}', 'http://localhost:3000/login');
+                .replace('{{loginLink}}', 'https://jokko-health-front-end.vercel.app/login');
 
             console.log("Envoi de l'email");
             await emailService.sendEmail({

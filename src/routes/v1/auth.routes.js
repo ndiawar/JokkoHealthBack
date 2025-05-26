@@ -7,6 +7,12 @@ import logAction from '../../middlewares/logs/logMiddleware.js';
 
 const router = express.Router(); // Créer un routeur express
 
+// Middleware de logging pour les routes d'authentification
+router.use((req, res, next) => {
+    console.log(`[Auth Routes] ${req.method} ${req.originalUrl}`);
+    next();
+});
+
 /**
  * @swagger
  * tags:
@@ -42,7 +48,15 @@ const router = express.Router(); // Créer un routeur express
  *       404:
  *         description: Utilisateur non trouvé.
  */
-router.post('/forgot-password', logAction, passwordValidator.forgotPassword, PasswordController.forgotPassword); // Route pour demander la réinitialisation du mot de passe
+router.post('/forgot-password', 
+    (req, res, next) => {
+        console.log('Middleware forgot-password appelé');
+        next();
+    },
+    logAction, 
+    passwordValidator.forgotPassword, 
+    PasswordController.forgotPassword
+);
 
 /**
  * @swagger

@@ -24,6 +24,15 @@ dotenv.config();
 
 const app = express();
 const port = 3001;
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Accepter toutes les origines pour le test
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  },
+});
 
 connectDB();
 
@@ -42,6 +51,8 @@ app.use(logActivity);
 app.use('/uploads', express.static('public/uploads'));
 
 setupSwagger(app);
+
+// Middleware pour ajouter io à la requête
 app.use((req, res, next) => {
   req.io = io;
   next();
@@ -51,16 +62,6 @@ app.use('/api', routes);
 
 // Error handling middleware
 app.use(errorHandler);
-
-const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*", // Accepter toutes les origines pour le test
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  },
-});
 
 let socketClients = {};
 
