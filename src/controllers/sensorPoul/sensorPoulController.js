@@ -58,50 +58,22 @@ const checkPersistentAnomalies = async (sensorId, anomalies, heartRate, oxygenLe
 const validateSensorData = (data) => {
   console.log("Données reçues pour validation:", data);
   
-  const { heartRate, oxygenLevel, macAddress, timestamp, irValue, redValue } = data;
+  const { mac, heartRate, spo2, timestamp, anomalies } = data;
   
-  // Vérification des données manquantes avec logs
-  if (!heartRate || !oxygenLevel || !macAddress || !timestamp || !irValue || !redValue) {
+  // Vérification uniquement des données manquantes essentielles
+  if (!mac || !timestamp) {
     console.log("Données manquantes:", {
-      heartRate: !heartRate,
-      oxygenLevel: !oxygenLevel,
-      macAddress: !macAddress,
-      timestamp: !timestamp,
-      irValue: !irValue,
-      redValue: !redValue
+      mac: !mac,
+      timestamp: !timestamp
     });
-    throw new AppError('Données manquantes', 400);
-  }
-
-  // Validation de la fréquence cardiaque
-  if (typeof heartRate !== 'number' || isNaN(heartRate)) {
-    console.log("Fréquence cardiaque invalide:", heartRate);
-    throw new AppError('Fréquence cardiaque invalide', 400);
-  }
-
-  // Validation du niveau d'oxygène
-  if (typeof oxygenLevel !== 'number' || isNaN(oxygenLevel)) {
-    console.log("Niveau d'oxygène invalide:", oxygenLevel);
-    throw new AppError('Niveau d\'oxygène invalide', 400);
-  }
-
-  // Validation des valeurs IR et Rouge
-  if (typeof irValue !== 'number' || isNaN(irValue) || typeof redValue !== 'number' || isNaN(redValue)) {
-    console.log("Valeurs IR ou Rouge invalides:", { irValue, redValue });
-    throw new AppError('Valeurs IR ou Rouge invalides', 400);
+    throw new AppError('Adresse MAC et timestamp requis', 400);
   }
 
   // Validation du format de l'adresse MAC (accepte les deux formats : et -)
   const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
-  if (!macRegex.test(macAddress)) {
-    console.log("Format d'adresse MAC invalide:", macAddress);
+  if (!macRegex.test(mac)) {
+    console.log("Format d'adresse MAC invalide:", mac);
     throw new AppError('Format d\'adresse MAC invalide', 400);
-  }
-
-  // Validation du timestamp
-  if (!timestamp || typeof timestamp !== 'string') {
-    console.log("Timestamp invalide:", timestamp);
-    throw new AppError('Timestamp invalide', 400);
   }
 
   console.log("Validation des données réussie");
@@ -229,167 +201,41 @@ export const receiveSensorData = async (req, res, next) => {
     // Validation des données d'entrée
     validateSensorData(req.body);
 
-    let { heartRate, oxygenLevel, macAddress, timestamp, irValue, redValue } = req.body;
-
-    // Conversion des valeurs en nombres
-    heartRate = parseFloat(heartRate);
-    oxygenLevel = parseFloat(oxygenLevel);
-    irValue = parseFloat(irValue);
-    redValue = parseFloat(redValue);
-
-    // Formatage du timestamp
-    let date = new Date();
-    if (timestamp && !timestamp.includes("T")) {
-      const [hour, minute, second] = timestamp.split(":");
-      date.setHours(hour, minute, second, 0);
-      timestamp = date.toISOString();
-    }
+    let { mac, heartRate, spo2, timestamp, anomalies } = req.body;
 
     // Récupération du capteur
-    const sensor = await Sensor.findOne({ mac: macAddress });
+    const sensor = await Sensor.findOne({ mac: mac });
     if (!sensor) {
-      console.log("Capteur non trouvé pour l'adresse MAC:", macAddress);
+      console.log("Capteur non trouvé pour l'adresse MAC:", mac);
       throw new AppError('Capteur non trouvé', 404);
     }
 
     // Mise à jour des données du capteur
     sensor.heartRate = heartRate;
-    sensor.spo2 = oxygenLevel;
+    sensor.spo2 = spo2;
     sensor.timestamp = timestamp;
-    sensor.irValue = irValue;
-    sensor.redValue = redValue;
+    sensor.anomalies = anomalies || [];
 
     // Sauvegarde des modifications
     await sensor.save();
     console.log("Données du capteur mises à jour avec succès");
 
-    const { anomalies, isEmergency } = detectAnomalies(heartRate, oxygenLevel);
+    // Détection des anomalies
+    const { anomalies: detectedAnomalies, isEmergency } = detectAnomalies(heartRate, spo2);
     
     // Vérifier si les anomalies sont persistantes
     const persistentAnomalies = await checkPersistentAnomalies(
       sensor._id,
-      anomalies,
+      detectedAnomalies,
       heartRate,
-      oxygenLevel
+      spo2
     );
-
-    // Ne créer des notifications que si les anomalies sont persistantes
-    if (persistentAnomalies.length > 0) {
-      const [medicalRecord, doctor] = await Promise.all([
-        MedicalRecord.findById(sensor.medicalRecord),
-        User.findById(sensor.medicalRecord?.medecinId)
-      ]);
-
-      if (medicalRecord) {
-        const notificationPromises = [];
-
-        if (isEmergency) {
-          // Notifications d'urgence
-          notificationPromises.push(
-            // Notification patient
-            NotificationService.createNotification({
-              userId: medicalRecord.patientId,
-              title: '🚨 URGENCE MÉDICALE',
-              message: `URGENCE : Des anomalies critiques ont été détectées dans vos données de santé : ${persistentAnomalies.join(', ')}`,
-              type: 'emergency',
-              priority: 'high',
-              data: {
-                sensorId: sensor._id,
-                heartRate,
-                oxygenLevel,
-                anomalies: persistentAnomalies,
-                timestamp,
-                isEmergency: true
-              }
-            }),
-            // Notification médecin si disponible
-            doctor && NotificationService.createNotification({
-              userId: doctor._id,
-              title: '🚨 URGENCE PATIENT',
-              message: `URGENCE : Anomalies critiques détectées pour le patient ${medicalRecord.patientId}. ${persistentAnomalies.join(', ')}`,
-              type: 'emergency',
-              priority: 'high',
-              data: {
-                sensorId: sensor._id,
-                patientId: medicalRecord.patientId,
-                heartRate,
-                oxygenLevel,
-                anomalies: persistentAnomalies,
-                timestamp,
-                isEmergency: true
-              }
-            }),
-            // Notifications SuperAdmin
-            User.find({ role: 'SuperAdmin' }).then(superAdmins => 
-              Promise.all(superAdmins.map(superAdmin =>
-                NotificationService.createNotification({
-                  userId: superAdmin._id,
-                  title: '🚨 URGENCE SYSTÈME',
-                  message: `URGENCE : Anomalies critiques détectées pour le patient ${medicalRecord.patientId}. ${persistentAnomalies.join(', ')}`,
-                  type: 'emergency',
-                  priority: 'high',
-                  data: {
-                    sensorId: sensor._id,
-                    patientId: medicalRecord.patientId,
-                    doctorId: doctor?._id,
-                    heartRate,
-                    oxygenLevel,
-                    anomalies: persistentAnomalies,
-                    timestamp,
-                    isEmergency: true
-                  }
-                })
-              ))
-            )
-          );
-        } else {
-          // Notifications pour anomalies non critiques
-          notificationPromises.push(
-            // Notification pour le patient
-            NotificationService.createNotification({
-              userId: medicalRecord.patientId,
-              title: '⚠️ Anomalies Persistantes Détectées',
-              message: `Des anomalies persistantes ont été détectées dans vos données de santé : ${persistentAnomalies.join(', ')}`,
-              type: 'sensor',
-              priority: 'medium',
-              data: {
-                sensorId: sensor._id,
-                heartRate,
-                oxygenLevel,
-                anomalies: persistentAnomalies,
-                timestamp,
-                isEmergency: false
-              }
-            }),
-            // Notification pour le médecin
-            doctor && NotificationService.createNotification({
-              userId: doctor._id,
-              title: '⚠️ Anomalies Persistantes Patient',
-              message: `Des anomalies persistantes ont été détectées pour le patient ${medicalRecord.patientId} : ${persistentAnomalies.join(', ')}`,
-              type: 'sensor',
-              priority: 'medium',
-              data: {
-                sensorId: sensor._id,
-                patientId: medicalRecord.patientId,
-                heartRate,
-                oxygenLevel,
-                anomalies: persistentAnomalies,
-                timestamp,
-                isEmergency: false
-              }
-            })
-          );
-        }
-
-        await Promise.all(notificationPromises.filter(Boolean));
-      }
-    }
 
     // Mise à jour des données en temps réel
     latestSensorData = {
       heartRate,
-      oxygenLevel,
-      macAddress,
+      oxygenLevel: spo2,
+      macAddress: mac,
       timestamp,
       anomalies: persistentAnomalies,
       isEmergency
