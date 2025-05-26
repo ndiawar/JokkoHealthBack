@@ -172,7 +172,7 @@ class UserController extends CrudController {
                 .replace('{{nom}}', nom)
                 .replace('{{username}}', username)
                 .replace('{{email}}', email)
-                .replace('{{loginLink}}', 'http://localhost:3000/login'); // Remplacer par l'URL de votre page de connexion
+                .replace('{{loginLink}}', 'https://jokko-health-front-end.vercel.app/login'); // Remplacer par l'URL de votre page de connexion
 
             // Envoi de l'email de bienvenue avec les informations de connexion
             const subject = 'Bienvenue sur JokkoHealth!';
