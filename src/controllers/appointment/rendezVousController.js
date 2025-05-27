@@ -20,6 +20,32 @@ export const createRendezVous = async (req, res, next) => {
             throw new AppError('Seuls les médecins peuvent créer des rendez-vous', 403);
         }
 
+        // Validation de la date et de l'heure
+        const selectedDate = new Date(date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Si la date est aujourd'hui, vérifier que l'heure n'est pas passée
+        if (selectedDate.getTime() === today.getTime()) {
+            const currentHour = new Date().getHours();
+            const currentMinutes = new Date().getMinutes();
+            const [debutHeures, debutMinutes] = heure_debut.split(':').map(Number);
+
+            if (debutHeures < currentHour || (debutHeures === currentHour && debutMinutes <= currentMinutes)) {
+                throw new AppError('L\'heure de début doit être dans le futur', 400);
+            }
+        } else if (selectedDate < today) {
+            throw new AppError('La date doit être dans le futur', 400);
+        }
+
+        // Validation des heures de début et de fin
+        const [debutHeures, debutMinutes] = heure_debut.split(':').map(Number);
+        const [finHeures, finMinutes] = heure_fin.split(':').map(Number);
+
+        if (finHeures < debutHeures || (finHeures === debutHeures && finMinutes <= debutMinutes)) {
+            throw new AppError('L\'heure de fin doit être après l\'heure de début', 400);
+        }
+
         // Créer le rendez-vous
         const appointment = await AppointmentService.createAppointment({
             date,
