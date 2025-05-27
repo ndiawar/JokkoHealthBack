@@ -13,8 +13,16 @@ const router = express.Router();
 // 1. Créer un rendez-vous (par un médecin)
 export const createRendezVous = async (req, res, next) => {
     try {
+        console.log('Début de la création du rendez-vous');
+        console.log('Données reçues:', req.body);
+        
         const { date, heure_debut, heure_fin, specialiste } = req.body;
         const doctorId = req.user._id;
+
+        if (!date || !heure_debut || !heure_fin || !specialiste) {
+            console.log('Données manquantes:', { date, heure_debut, heure_fin, specialiste });
+            throw new AppError('Tous les champs sont requis', 400);
+        }
 
         if (req.user.role !== 'Medecin') {
             throw new AppError('Seuls les médecins peuvent créer des rendez-vous', 403);
@@ -25,11 +33,17 @@ export const createRendezVous = async (req, res, next) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
+        console.log('Date sélectionnée:', selectedDate);
+        console.log('Date aujourd\'hui:', today);
+
         // Si la date est aujourd'hui, vérifier que l'heure n'est pas passée
         if (selectedDate.getTime() === today.getTime()) {
             const currentHour = new Date().getHours();
             const currentMinutes = new Date().getMinutes();
             const [debutHeures, debutMinutes] = heure_debut.split(':').map(Number);
+
+            console.log('Heures actuelles:', { currentHour, currentMinutes });
+            console.log('Heures de début:', { debutHeures, debutMinutes });
 
             if (debutHeures < currentHour || (debutHeures === currentHour && debutMinutes <= currentMinutes)) {
                 throw new AppError('L\'heure de début doit être dans le futur', 400);
@@ -42,9 +56,24 @@ export const createRendezVous = async (req, res, next) => {
         const [debutHeures, debutMinutes] = heure_debut.split(':').map(Number);
         const [finHeures, finMinutes] = heure_fin.split(':').map(Number);
 
+        console.log('Validation des heures:', {
+            debutHeures,
+            debutMinutes,
+            finHeures,
+            finMinutes
+        });
+
         if (finHeures < debutHeures || (finHeures === debutHeures && finMinutes <= debutMinutes)) {
             throw new AppError('L\'heure de fin doit être après l\'heure de début', 400);
         }
+
+        console.log('Création du rendez-vous avec les données:', {
+            date,
+            heure_debut,
+            heure_fin,
+            specialiste,
+            doctorId
+        });
 
         // Créer le rendez-vous
         const appointment = await AppointmentService.createAppointment({
@@ -55,51 +84,66 @@ export const createRendezVous = async (req, res, next) => {
             doctorId
         });
 
+        console.log('Rendez-vous créé avec succès:', appointment);
+
         // Récupérer tous les patients du médecin via les dossiers médicaux
         const medicalRecords = await MedicalRecord.find({ medecinId: doctorId });
+        console.log('Nombre de dossiers médicaux trouvés:', medicalRecords.length);
         
         // Créer une notification pour chaque patient
         for (const record of medicalRecords) {
-            await NotificationService.createNotification({
-                userId: record.patientId,
-                title: 'Nouveau Rendez-vous Disponible',
-                message: `Le Dr. ${req.user.nom} ${req.user.prenom} a créé un nouveau rendez-vous le ${date} à ${heure_debut} pour ${specialiste}`,
-                type: 'appointment',
-                priority: 'medium',
-                data: {
-                    appointmentId: appointment._id,
-                    doctorId: doctorId,
-                    doctorName: `${req.user.nom} ${req.user.prenom}`,
-                    date,
-                    heure_debut,
-                    specialiste
-                }
-            });
+            try {
+                await NotificationService.createNotification({
+                    userId: record.patientId,
+                    title: 'Nouveau Rendez-vous Disponible',
+                    message: `Le Dr. ${req.user.nom} ${req.user.prenom} a créé un nouveau rendez-vous le ${date} à ${heure_debut} pour ${specialiste}`,
+                    type: 'appointment',
+                    priority: 'medium',
+                    data: {
+                        appointmentId: appointment._id,
+                        doctorId: doctorId,
+                        doctorName: `${req.user.nom} ${req.user.prenom}`,
+                        date,
+                        heure_debut,
+                        specialiste
+                    }
+                });
+            } catch (error) {
+                console.error('Erreur lors de la création de la notification pour le patient:', error);
+                // Continuer avec les autres notifications même si une échoue
+            }
         }
 
         // Récupérer tous les SuperAdmin pour notification
         const superAdmins = await User.find({ role: 'SuperAdmin' });
+        console.log('Nombre de SuperAdmin trouvés:', superAdmins.length);
         
         // Créer une notification pour chaque SuperAdmin
         for (const superAdmin of superAdmins) {
-            await NotificationService.createNotification({
-                userId: superAdmin._id,
-                title: 'Nouveau Rendez-vous Créé',
-                message: `Le Dr. ${req.user.nom} ${req.user.prenom} a créé un nouveau rendez-vous pour le ${date} à ${heure_debut}`,
-                type: 'appointment',
-                priority: 'low',
-                data: {
-                    appointmentId: appointment._id,
-                    doctorId: doctorId,
-                    doctorName: `${req.user.nom} ${req.user.prenom}`,
-                    date,
-                    heure_debut
-                }
-            });
+            try {
+                await NotificationService.createNotification({
+                    userId: superAdmin._id,
+                    title: 'Nouveau Rendez-vous Créé',
+                    message: `Le Dr. ${req.user.nom} ${req.user.prenom} a créé un nouveau rendez-vous pour le ${date} à ${heure_debut}`,
+                    type: 'appointment',
+                    priority: 'low',
+                    data: {
+                        appointmentId: appointment._id,
+                        doctorId: doctorId,
+                        doctorName: `${req.user.nom} ${req.user.prenom}`,
+                        date,
+                        heure_debut
+                    }
+                });
+            } catch (error) {
+                console.error('Erreur lors de la création de la notification pour le SuperAdmin:', error);
+                // Continuer avec les autres notifications même si une échoue
+            }
         }
 
         res.status(201).json({ message: 'Rendez-vous créé avec succès', appointment });
     } catch (error) {
+        console.error('Erreur lors de la création du rendez-vous:', error);
         next(error);
     }
 };
