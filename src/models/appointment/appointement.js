@@ -6,9 +6,11 @@ const appointmentSchema = new mongoose.Schema({
     required: true,
     validate: {
       validator: function(value) {
-        return value > new Date();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return value >= today;
       },
-      message: 'La date du rendez-vous doit être dans le futur'
+      message: 'La date du rendez-vous doit être aujourd\'hui ou dans le futur'
     }
   },
   heure_debut: {
@@ -33,7 +35,7 @@ const appointmentSchema = new mongoose.Schema({
   },
   specialiste: {
     type: String,
-    required: false,
+    required: true,
     trim: true
   },
   doctorId: {
